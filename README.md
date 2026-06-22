@@ -32,24 +32,30 @@ Change these values before using the service anywhere real.
 
 ## Portainer
 
-Use the included `docker-compose.yml` as a Portainer stack. Persist `/app/data` with a volume.
+Use `portainer-stack.yml` as a Git stack in Portainer.
 
-```yaml
-services:
-  rdpman:
-    image: rdpman:latest
-    ports:
-      - "8095:8000"
-    volumes:
-      - rdpman_data:/app/data
-    environment:
-      RDP_MAN_SECRET_KEY: "replace-with-a-long-random-value"
-      RDP_MAN_ADMIN_USERNAME: "admin"
-      RDP_MAN_ADMIN_PASSWORD: "replace-me"
-      RDP_MAN_API_TOKEN: "replace-me-too"
-volumes:
-  rdpman_data:
+Repository URL:
+
+```text
+https://github.com/sandavdesigns/rdpman.git
 ```
+
+Compose path:
+
+```text
+portainer-stack.yml
+```
+
+Set these Portainer environment variables:
+
+```text
+RDP_MAN_SECRET_KEY=replace-with-a-long-random-secret
+RDP_MAN_ADMIN_USERNAME=admin
+RDP_MAN_ADMIN_PASSWORD=replace-with-a-strong-password
+RDP_MAN_API_TOKEN=replace-with-a-long-random-api-token
+```
+
+More details are in `PORTAINER.md`.
 
 ## API
 
@@ -94,4 +100,3 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 pytest
 ```
-
