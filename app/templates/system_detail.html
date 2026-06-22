@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="header-row">
+  <div>
+    <h1>{{ system.name }}</h1>
+    <p>{{ system.hostname }}{% if system.ip_address %} · {{ system.ip_address }}{% endif %}</p>
+  </div>
+  <a class="button" href="/systems/{{ system.id }}/rdp">RDP herunterladen</a>
+</section>
+
+<section class="detail-grid">
+  <div class="panel">
+    <h2>Details</h2>
+    <dl>
+      <dt>Kunde</dt><dd>{{ system.customer or "-" }}</dd>
+      <dt>Standort</dt><dd>{{ system.location or "-" }}</dd>
+      <dt>Umgebung</dt><dd>{{ system.environment or "-" }}</dd>
+      <dt>Status</dt><dd>{{ system.status }}</dd>
+      <dt>Notizen</dt><dd>{{ system.notes or "-" }}</dd>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h2>Zugang hinzufügen</h2>
+    <form class="stack-form" method="post" action="/systems/{{ system.id }}/credentials">
+      <label>Label<input name="label" value="Default" required></label>
+      <label>Domain<input name="domain"></label>
+      <label>Benutzername<input name="username" required></label>
+      <label>Passwort<input name="password" type="password" required></label>
+      <button type="submit">Zugang speichern</button>
+    </form>
+  </div>
+</section>
+
+<section class="table-wrap">
+  <h2>Zugänge</h2>
+  <table>
+    <thead>
+      <tr><th>Label</th><th>Benutzer</th><th>Domain</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for credential in credentials %}
+      <tr>
+        <td>{{ credential.label }}</td>
+        <td>{{ credential.username }}</td>
+        <td>{{ credential.domain or "" }}</td>
+        <td><span class="badge">{{ "aktiv" if credential.is_active else "inaktiv" }}</span></td>
+        <td><a class="button ghost" href="/systems/{{ system.id }}/rdp?credential_id={{ credential.id }}">RDP</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">Noch keine Zugänge hinterlegt.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="table-wrap">
+  <h2>Letzte Ereignisse</h2>
+  <table>
+    <thead>
+      <tr><th>Zeit</th><th>Aktion</th><th>Benutzer</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+      {% for event in audit_events %}
+      <tr>
+        <td>{{ event.created_at }}</td>
+        <td>{{ event.action }}</td>
+        <td>{{ event.actor }}</td>
+        <td>{{ event.details or "" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty">Keine Ereignisse.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
