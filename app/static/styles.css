@@ -178,6 +178,78 @@ button:hover,
   background: #dce9ff;
 }
 
+.secondary {
+  background: #eef2f6;
+  color: #253142;
+}
+
+.secondary:hover {
+  background: #dfe5ee;
+}
+
+.connection-board {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  margin-bottom: 22px;
+}
+
+.connection-tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  min-height: 230px;
+  padding: 18px;
+}
+
+.connection-main {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+}
+
+.connection-main h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.status-dot {
+  background: #16a34a;
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px #dcfce7;
+  display: inline-block;
+  height: 10px;
+  margin-top: 7px;
+  width: 10px;
+}
+
+.connection-tile dl {
+  gap: 7px 10px;
+  grid-template-columns: 82px 1fr;
+}
+
+.connection-tile dt,
+.connection-tile dd {
+  font-size: 13px;
+}
+
+.tile-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.tile-actions form {
+  margin: 0;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -257,4 +329,3 @@ dd {
     overflow-x: auto;
   }
 }
-

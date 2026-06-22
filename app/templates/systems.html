@@ -3,7 +3,7 @@
 <section class="header-row">
   <div>
     <h1>Systeme</h1>
-    <p>Server verwalten und RDP-Verbindungen vorbereiten.</p>
+    <p>Server verwalten und RDP-Verbindungen starten.</p>
   </div>
   <form class="search" method="get">
     <input name="q" value="{{ q }}" placeholder="Suchen">
@@ -17,9 +17,6 @@
     <label>Name<input name="name" required></label>
     <label>Hostname / FQDN<input name="hostname" required></label>
     <label>IP-Adresse<input name="ip_address"></label>
-    <label>Kunde<input name="customer"></label>
-    <label>Standort<input name="location"></label>
-    <label>Umgebung<input name="environment" placeholder="Prod, Test, DMZ"></label>
     <label>Status<input name="status" value="active"></label>
     <label class="full">Notizen<textarea name="notes" rows="3"></textarea></label>
     <button type="submit">Speichern</button>
@@ -32,7 +29,7 @@
       <tr>
         <th>Name</th>
         <th>Hostname</th>
-        <th>Kunde</th>
+        <th>IP-Adresse</th>
         <th>Status</th>
         <th></th>
       </tr>
@@ -42,7 +39,7 @@
       <tr>
         <td><a href="/systems/{{ system.id }}">{{ system.name }}</a></td>
         <td>{{ system.hostname }}</td>
-        <td>{{ system.customer or "" }}</td>
+        <td>{{ system.ip_address or "" }}</td>
         <td><span class="badge">{{ system.status }}</span></td>
         <td><a class="button ghost" href="/systems/{{ system.id }}/rdp">RDP</a></td>
       </tr>
@@ -53,4 +50,3 @@
   </table>
 </section>
 {% endblock %}
-

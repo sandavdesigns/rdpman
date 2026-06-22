@@ -12,9 +12,8 @@
   <div class="panel">
     <h2>Details</h2>
     <dl>
-      <dt>Kunde</dt><dd>{{ system.customer or "-" }}</dd>
-      <dt>Standort</dt><dd>{{ system.location or "-" }}</dd>
-      <dt>Umgebung</dt><dd>{{ system.environment or "-" }}</dd>
+      <dt>Hostname</dt><dd>{{ system.hostname }}</dd>
+      <dt>IP-Adresse</dt><dd>{{ system.ip_address or "-" }}</dd>
       <dt>Status</dt><dd>{{ system.status }}</dd>
       <dt>Notizen</dt><dd>{{ system.notes or "-" }}</dd>
     </dl>
@@ -75,4 +74,3 @@
   </table>
 </section>
 {% endblock %}
-

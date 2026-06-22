@@ -10,9 +10,6 @@ class SystemBase(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     hostname: str = Field(min_length=1, max_length=255)
     ip_address: Optional[str] = None
-    customer: Optional[str] = None
-    location: Optional[str] = None
-    environment: Optional[str] = None
     status: str = "active"
     notes: Optional[str] = None
     external_ref: Optional[str] = None
@@ -26,9 +23,6 @@ class SystemUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     hostname: Optional[str] = Field(default=None, min_length=1, max_length=255)
     ip_address: Optional[str] = None
-    customer: Optional[str] = None
-    location: Optional[str] = None
-    environment: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     external_ref: Optional[str] = None
@@ -73,3 +67,18 @@ class AuditEventRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ConnectionSessionRead(BaseModel):
+    id: int
+    system_id: int
+    credential_id: Optional[int]
+    actor: str
+    status: str
+    ticket_id: Optional[str]
+    started_at: datetime
+    last_opened_at: datetime
+    closed_at: Optional[datetime]
+    system_name: str
+    hostname: str
+    ip_address: Optional[str]

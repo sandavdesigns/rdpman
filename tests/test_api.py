@@ -29,7 +29,7 @@ def test_system_lifecycle_and_rdp_download():
         json={
             "name": "Terminalserver 01",
             "hostname": "ts01.example.local",
-            "customer": "Example GmbH",
+            "ip_address": "10.20.30.40",
         },
     )
 
@@ -44,6 +44,19 @@ def test_system_lifecycle_and_rdp_download():
     assert rdp_response.status_code == 200
     assert "full address:s:ts01.example.local" in rdp_response.text
     assert "prompt for credentials:i:1" in rdp_response.text
+
+    connections_response = client.get("/api/v1/connections", headers=auth_headers())
+    assert connections_response.status_code == 200
+    connections = connections_response.json()
+    assert len(connections) == 1
+    assert connections[0]["system_id"] == system_id
+    assert connections[0]["hostname"] == "ts01.example.local"
+    assert connections[0]["status"] == "active"
+    assert connections[0]["ticket_id"] == "T-1000"
+
+    close_response = client.post(f"/api/v1/connections/{connections[0]['id']}/close", headers=auth_headers())
+    assert close_response.status_code == 200
+    assert close_response.json()["status"] == "closed"
 
 
 def test_credential_response_never_returns_password():
@@ -65,4 +78,3 @@ def test_credential_response_never_returns_password():
     assert body["username"] == "administrator"
     assert "password" not in body
     assert "encrypted_password" not in body
-
