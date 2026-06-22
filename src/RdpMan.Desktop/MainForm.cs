@@ -188,7 +188,7 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             BackColor = AppTheme.Window,
-            Padding = new Padding(22),
+            Padding = new Padding(28, 0, 22, 0),
         };
 
         _rdpPanel.Dock = DockStyle.Fill;
