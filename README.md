@@ -19,6 +19,18 @@ RDP Man is a native Windows desktop application for managing and switching betwe
 - .NET 8 SDK
 - Microsoft Remote Desktop Client components, included on normal Windows installations
 
+## Download Ready Build
+
+GitHub Actions builds a Windows ZIP package on every push to `main`.
+
+1. Open the GitHub repository.
+2. Go to **Actions**.
+3. Open the latest **Build Windows App** run.
+4. Download the `RdpMan-win-x64` artifact.
+5. Extract the ZIP and start `RdpMan.exe`.
+
+Tagged versions like `v0.1.0` also create a GitHub Release with the ZIP attached.
+
 Build:
 
 ```powershell

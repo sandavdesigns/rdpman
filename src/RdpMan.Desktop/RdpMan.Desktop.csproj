@@ -7,6 +7,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RdpMan</AssemblyName>
     <RootNamespace>RdpMan.Desktop</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>SANDAV</Authors>
   </PropertyGroup>
 
   <ItemGroup>
