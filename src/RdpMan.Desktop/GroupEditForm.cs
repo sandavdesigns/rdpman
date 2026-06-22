@@ -24,7 +24,8 @@ public sealed class GroupEditForm : Form
 
         Text = group is null ? "Gruppe hinzufuegen" : "Gruppe bearbeiten";
         Width = 520;
-        Height = 370;
+        Height = 430;
+        MinimumSize = new Size(520, 410);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -58,8 +59,8 @@ public sealed class GroupEditForm : Form
             Dock = DockStyle.Top,
             ColumnCount = 1,
             RowCount = 3,
-            Height = 200,
-            Padding = new Padding(0, 12, 0, 0),
+            Height = 238,
+            Padding = new Padding(0, 14, 0, 10),
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -146,7 +147,7 @@ public sealed class GroupEditForm : Form
 
     private static Panel Field(string label, Control input)
     {
-        var panel = new Panel { Dock = DockStyle.Top, Height = 62 };
+        var panel = new Panel { Dock = DockStyle.Top, Height = 72 };
         var labelControl = AppTheme.Label(label);
         labelControl.Dock = DockStyle.Top;
         input.Dock = DockStyle.Top;
