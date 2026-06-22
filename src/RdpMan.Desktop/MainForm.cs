@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 
 namespace RdpMan.Desktop;
 
@@ -20,6 +21,7 @@ public sealed class MainForm : Form
     private readonly ContextMenuStrip _machineMenu = new();
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
+    private readonly ToolStripStatusLabel _versionLabel = new();
 
     public MainForm()
     {
@@ -73,12 +75,22 @@ public sealed class MainForm : Form
         _statusStrip.BackColor = Color.White;
         _statusStrip.SizingGrip = true;
         _statusStrip.Items.Add(_statusLabel);
+        _statusStrip.Items.Add(_versionLabel);
         _statusLabel.Text = "Bereit";
+        _statusLabel.Spring = true;
+        _versionLabel.Text = $"v{AppVersion()}";
+        _versionLabel.ForeColor = AppTheme.MutedText;
         _statusLabel.ForeColor = AppTheme.MutedText;
 
         Controls.Add(root);
         Controls.Add(_statusStrip);
         _statusStrip.Dock = DockStyle.Bottom;
+    }
+
+    private static string AppVersion()
+    {
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
     private Panel BuildSidebar()
@@ -805,19 +817,13 @@ public sealed class MainForm : Form
     {
         using var dialog = new SetupForm(
             _data,
-            () =>
-            {
-                ImportFromAd();
-                SaveData();
-                RefreshMachineList();
-            },
             ExportBackup,
             () =>
             {
                 ImportBackup();
                 RefreshMachineList();
             });
-        if (dialog.ShowDialog(this) == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK || dialog.DataChanged)
         {
             SaveData();
             RefreshMachineList();
