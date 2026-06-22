@@ -29,7 +29,11 @@ GitHub Actions builds a Windows ZIP package on every push to `main`.
 4. Download the `RdpMan-win-x64` artifact.
 5. Extract the ZIP and start `RdpMan.exe`.
 
-Tagged versions like `v0.1.0` also create a GitHub Release with the ZIP attached.
+Tagged versions like `v0.1.1` also create a GitHub Release with the ZIP attached.
+
+The build intentionally loads the Microsoft RDP ActiveX control at runtime from
+the Windows registry. This avoids generated COM wrapper files in CI while still
+using the real Windows RDP client component on the target machine.
 
 Build:
 
