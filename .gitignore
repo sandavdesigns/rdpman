@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.venv/
+data/
+*.user
+*.suo
+*.nupkg
+artifacts/
+outputs/
