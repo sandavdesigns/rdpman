@@ -118,27 +118,16 @@ public sealed class MainForm : Form
         header.Controls.Add(subtitle);
         header.Controls.Add(_machineCount);
 
-        var quickActions = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 46,
-            BackColor = AppTheme.Sidebar,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-        };
-        var add = AppTheme.Button("Neu", primary: true);
-        var edit = AppTheme.Button("Bearbeiten");
-        var adHoc = AppTheme.Button("Ad hoc");
-        add.Width = 74;
-        edit.Width = 92;
-        adHoc.Width = 78;
+        var quickActions = SidebarButtonGrid(3, height: 52, topPadding: 4, bottomPadding: 8);
+        var add = AppTheme.SidebarButton("Neu", primary: true);
+        var edit = AppTheme.SidebarButton("Bearbeiten");
+        var adHoc = AppTheme.SidebarButton("Ad hoc");
         add.Click += (_, _) => AddMachine();
         edit.Click += (_, _) => EditMachine();
         adHoc.Click += (_, _) => ConnectAdHoc();
-        quickActions.Controls.Add(add);
-        quickActions.Controls.Add(edit);
-        quickActions.Controls.Add(adHoc);
-        quickActions.Resize += (_, _) => CenterButtonRow(quickActions, 0);
+        AddSidebarButton(quickActions, add, 0);
+        AddSidebarButton(quickActions, edit, 1);
+        AddSidebarButton(quickActions, adHoc, 2);
 
         _search.PlaceholderText = "Suchen...";
         _search.BorderStyle = BorderStyle.FixedSingle;
@@ -173,32 +162,19 @@ public sealed class MainForm : Form
         _machineList.MouseLeave += (_, _) => HideMachineTooltip();
         BuildMachineContextMenu();
 
-        var bottomActions = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Bottom,
-            Height = 92,
-            BackColor = AppTheme.Sidebar,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Padding = new Padding(0, 14, 0, 0),
-        };
-        var credentials = AppTheme.Button("Zugänge");
-        var groups = AppTheme.Button("Gruppen");
-        var ad = AppTheme.Button("AD Import");
-        var backup = AppTheme.Button("Backup");
-        credentials.Width = 68;
-        groups.Width = 72;
-        ad.Width = 76;
-        backup.Width = 68;
+        var bottomActions = SidebarButtonGrid(2, height: 102, topPadding: 12, bottomPadding: 12, rows: 2);
+        var credentials = AppTheme.SidebarButton("Zugänge");
+        var groups = AppTheme.SidebarButton("Gruppen");
+        var ad = AppTheme.SidebarButton("AD Import");
+        var backup = AppTheme.SidebarButton("Backup");
         credentials.Click += (_, _) => ManageCredentials();
         groups.Click += (_, _) => ManageGroups();
         ad.Click += (_, _) => ImportFromAd();
         backup.Click += (_, _) => ShowBackupMenu(backup);
-        bottomActions.Controls.Add(credentials);
-        bottomActions.Controls.Add(groups);
-        bottomActions.Controls.Add(ad);
-        bottomActions.Controls.Add(backup);
-        bottomActions.Resize += (_, _) => CenterButtonRow(bottomActions, 14);
+        AddSidebarButton(bottomActions, credentials, 0, 0);
+        AddSidebarButton(bottomActions, groups, 1, 0);
+        AddSidebarButton(bottomActions, ad, 0, 1);
+        AddSidebarButton(bottomActions, backup, 1, 1);
 
         sidebar.Controls.Add(_machineList);
         sidebar.Controls.Add(bottomActions);
@@ -266,11 +242,34 @@ public sealed class MainForm : Form
         };
     }
 
-    private static void CenterButtonRow(FlowLayoutPanel row, int topPadding)
+    private static TableLayoutPanel SidebarButtonGrid(int columns, int height, int topPadding, int bottomPadding, int rows = 1)
     {
-        var contentWidth = row.Controls.Cast<Control>().Sum(control => control.Width + control.Margin.Horizontal);
-        var leftPadding = Math.Max(0, (row.ClientSize.Width - contentWidth) / 2);
-        row.Padding = new Padding(leftPadding, topPadding, 0, 0);
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = height,
+            BackColor = AppTheme.Sidebar,
+            ColumnCount = columns,
+            RowCount = rows,
+            Padding = new Padding(0, topPadding, 0, bottomPadding),
+        };
+
+        for (var column = 0; column < columns; column++)
+        {
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / columns));
+        }
+
+        for (var row = 0; row < rows; row++)
+        {
+            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
+        }
+
+        return grid;
+    }
+
+    private static void AddSidebarButton(TableLayoutPanel grid, Button button, int column, int row = 0)
+    {
+        grid.Controls.Add(button, column, row);
     }
 
     private void SelectMachineForContextMenu(object? sender, MouseEventArgs e)

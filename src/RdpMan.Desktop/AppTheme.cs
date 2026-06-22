@@ -39,17 +39,44 @@ internal static class AppTheme
             Text = text,
             AutoSize = false,
             Width = primary ? 116 : 104,
-            Height = 36,
+            Height = 38,
             FlatStyle = FlatStyle.Flat,
-            Font = UiFont,
+            Font = primary ? SectionFont : UiFont,
             BackColor = primary ? Accent : Surface,
             ForeColor = primary ? Color.White : Text,
             Cursor = Cursors.Hand,
-            Margin = new Padding(6, 0, 0, 0),
+            Margin = new Padding(4, 0, 0, 0),
+            TextAlign = ContentAlignment.MiddleCenter,
+            UseVisualStyleBackColor = false,
         };
         button.FlatAppearance.BorderColor = primary ? Accent : Border;
+        button.FlatAppearance.BorderSize = 1;
         button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(29, 78, 216) : SurfaceAlt;
         button.FlatAppearance.MouseDownBackColor = primary ? Color.FromArgb(30, 64, 175) : Color.FromArgb(226, 232, 240);
+        return button;
+    }
+
+    public static Button SidebarButton(string text, bool primary = false)
+    {
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Height = 38,
+            FlatStyle = FlatStyle.Flat,
+            Font = primary ? SectionFont : UiFont,
+            BackColor = primary ? Accent : Color.FromArgb(30, 41, 59),
+            ForeColor = Color.White,
+            Cursor = Cursors.Hand,
+            Margin = new Padding(4),
+            TextAlign = ContentAlignment.MiddleCenter,
+            UseVisualStyleBackColor = false,
+        };
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderColor = primary ? Accent : Color.FromArgb(51, 65, 85);
+        button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(29, 78, 216) : Color.FromArgb(51, 65, 85);
+        button.FlatAppearance.MouseDownBackColor = primary ? Color.FromArgb(30, 64, 175) : Color.FromArgb(71, 85, 105);
         return button;
     }
 
