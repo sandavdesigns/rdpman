@@ -162,19 +162,10 @@ public sealed class MainForm : Form
         _machineList.MouseLeave += (_, _) => HideMachineTooltip();
         BuildMachineContextMenu();
 
-        var bottomActions = SidebarButtonGrid(2, height: 102, topPadding: 12, bottomPadding: 12, rows: 2);
-        var credentials = AppTheme.SidebarButton("Zugänge");
-        var groups = AppTheme.SidebarButton("Gruppen");
-        var ad = AppTheme.SidebarButton("AD Import");
-        var backup = AppTheme.SidebarButton("Backup");
-        credentials.Click += (_, _) => ManageCredentials();
-        groups.Click += (_, _) => ManageGroups();
-        ad.Click += (_, _) => ImportFromAd();
-        backup.Click += (_, _) => ShowBackupMenu(backup);
-        AddSidebarButton(bottomActions, credentials, 0, 0);
-        AddSidebarButton(bottomActions, groups, 1, 0);
-        AddSidebarButton(bottomActions, ad, 0, 1);
-        AddSidebarButton(bottomActions, backup, 1, 1);
+        var bottomActions = SidebarButtonGrid(1, height: 66, topPadding: 12, bottomPadding: 12);
+        var setup = AppTheme.SidebarButton("Setup", primary: true);
+        setup.Click += (_, _) => OpenSetup();
+        AddSidebarButton(bottomActions, setup, 0);
 
         sidebar.Controls.Add(_machineList);
         sidebar.Controls.Add(bottomActions);
@@ -810,13 +801,27 @@ public sealed class MainForm : Form
         Process.Start(process);
     }
 
-    private void ShowBackupMenu(Control owner)
+    private void OpenSetup()
     {
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Backup erstellen", null, (_, _) => ExportBackup());
-        menu.Items.Add("Backup wiederherstellen", null, (_, _) => ImportBackup());
-        menu.Closed += (_, _) => BeginInvoke(() => menu.Dispose());
-        menu.Show(owner, new Point(0, owner.Height + 4));
+        using var dialog = new SetupForm(
+            _data,
+            () =>
+            {
+                ImportFromAd();
+                SaveData();
+                RefreshMachineList();
+            },
+            ExportBackup,
+            () =>
+            {
+                ImportBackup();
+                RefreshMachineList();
+            });
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            SaveData();
+            RefreshMachineList();
+        }
     }
 
     private void ExportBackup()
