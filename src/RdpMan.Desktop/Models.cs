@@ -5,9 +5,22 @@ namespace RdpMan.Desktop;
 public sealed class AppData
 {
     public List<MachineEntry> Machines { get; set; } = [];
+    public List<MachineGroup> Groups { get; set; } = [];
     public List<CredentialProfile> Credentials { get; set; } = [];
     public List<Guid> AutoReconnectMachineIds { get; set; } = [];
+    public Guid? GlobalCredentialProfileId { get; set; }
     public Guid? QuickConnectCredentialProfileId { get; set; }
+}
+
+public sealed class MachineGroup
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string ColorKey { get; set; } = "blue";
+    public Guid? CredentialProfileId { get; set; }
+
+    [JsonIgnore]
+    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? "Ohne Gruppe" : Name;
 }
 
 public sealed class MachineEntry
@@ -15,8 +28,9 @@ public sealed class MachineEntry
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string DnsName { get; set; } = "";
+    public Guid? GroupId { get; set; }
     public string GroupName { get; set; } = "";
-    public string ColorKey { get; set; } = "blue";
+    public string ColorKey { get; set; } = "";
     public string? Notes { get; set; }
     public Guid? CredentialProfileId { get; set; }
     public bool IsFavorite { get; set; }

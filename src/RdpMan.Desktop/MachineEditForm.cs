@@ -4,8 +4,8 @@ public sealed class MachineEditForm : Form
 {
     private readonly TextBox _name = AppTheme.TextBox();
     private readonly TextBox _dnsName = AppTheme.TextBox();
-    private readonly TextBox _groupName = AppTheme.TextBox();
     private readonly TextBox _notes = AppTheme.TextBox(multiline: true);
+    private readonly ComboBox _group = new();
     private readonly ComboBox _credential = new();
     private readonly ComboBox _color = new();
     private readonly CheckBox _favorite = new();
@@ -27,6 +27,7 @@ public sealed class MachineEditForm : Form
                 Id = machine.Id,
                 Name = machine.Name,
                 DnsName = machine.DnsName,
+                GroupId = machine.GroupId,
                 GroupName = machine.GroupName,
                 ColorKey = machine.ColorKey,
                 Notes = machine.Notes,
@@ -85,15 +86,15 @@ public sealed class MachineEditForm : Form
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
+        _group.DropDownStyle = ComboBoxStyle.DropDownList;
+        _group.FlatStyle = FlatStyle.Flat;
+        AppTheme.StyleInput(_group);
+
         _credential.DropDownStyle = ComboBoxStyle.DropDownList;
         _credential.FlatStyle = FlatStyle.Flat;
-        _credential.Height = 32;
         AppTheme.StyleInput(_credential);
 
-        _color.DropDownStyle = ComboBoxStyle.DropDownList;
-        _color.FlatStyle = FlatStyle.Flat;
-        _color.Height = 32;
-        AppTheme.StyleInput(_color);
+        ColorPalette.ConfigureColorCombo(_color);
 
         StyleCheckBox(_favorite, "Favorit");
         StyleCheckBox(_redirectClipboard, "Zwischenablage erlauben");
@@ -116,7 +117,7 @@ public sealed class MachineEditForm : Form
 
         layout.Controls.Add(Field("Name", _name, "z.B. Terminalserver 01"), 0, 0);
         layout.Controls.Add(Field("DNS-Name / Host", _dnsName, "server.domain.local oder IP"), 0, 1);
-        layout.Controls.Add(Field("Gruppe", _groupName, "z.B. Server, CNC, Buero"), 0, 2);
+        layout.Controls.Add(Field("Gruppe", _group), 0, 2);
         layout.Controls.Add(Field("Farbe", _color), 0, 3);
         layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 4);
         layout.Controls.Add(CheckField(_favorite), 0, 5);
@@ -147,7 +148,6 @@ public sealed class MachineEditForm : Form
     {
         _name.Text = Machine?.Name ?? "";
         _dnsName.Text = Machine?.DnsName ?? "";
-        _groupName.Text = Machine?.GroupName ?? "";
         _notes.Text = Machine?.Notes ?? "";
         _favorite.Checked = Machine?.IsFavorite == true;
         _redirectClipboard.Checked = Machine?.RedirectClipboard == true;
@@ -155,12 +155,38 @@ public sealed class MachineEditForm : Form
         _redirectSmartCards.Checked = Machine?.RedirectSmartCards == true;
         _redirectWebAuthn.Checked = Machine?.RedirectWebAuthn == true;
 
-        foreach (var choice in ColorChoices.All)
+        _group.Items.Add(new GroupChoice(null, "Keine Gruppe"));
+        foreach (var group in _data.Groups.OrderBy(item => item.DisplayName))
+        {
+            _group.Items.Add(new GroupChoice(group.Id, group.DisplayName));
+        }
+
+        var selectedGroupId = Machine?.GroupId;
+        if (selectedGroupId is null && !string.IsNullOrWhiteSpace(Machine?.GroupName))
+        {
+            selectedGroupId = _data.Groups.FirstOrDefault(group => group.Name.Equals(Machine.GroupName, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+
+        for (var index = 0; index < _group.Items.Count; index++)
+        {
+            if (_group.Items[index] is GroupChoice choice && choice.Id == selectedGroupId)
+            {
+                _group.SelectedIndex = index;
+                break;
+            }
+        }
+        if (_group.SelectedIndex < 0)
+        {
+            _group.SelectedIndex = 0;
+        }
+
+        _color.Items.Add(new ColorChoice("", "Gruppenfarbe verwenden"));
+        foreach (var choice in ColorPalette.Choices)
         {
             _color.Items.Add(choice);
         }
 
-        var selectedColor = string.IsNullOrWhiteSpace(Machine?.ColorKey) ? "blue" : Machine.ColorKey;
+        var selectedColor = Machine?.ColorKey ?? "";
         for (var index = 0; index < _color.Items.Count; index++)
         {
             if (_color.Items[index] is ColorChoice choice && choice.Key == selectedColor)
@@ -174,7 +200,7 @@ public sealed class MachineEditForm : Form
             _color.SelectedIndex = 0;
         }
 
-        _credential.Items.Add(new CredentialChoice(null, "Kein gespeicherter Zugang"));
+        _credential.Items.Add(new CredentialChoice(null, "Gruppe/global verwenden"));
         foreach (var credential in _data.Credentials.OrderBy(item => item.DisplayName))
         {
             _credential.Items.Add(new CredentialChoice(credential.Id, credential.DisplayName));
@@ -203,8 +229,11 @@ public sealed class MachineEditForm : Form
         Machine ??= new MachineEntry();
         Machine.Name = string.IsNullOrWhiteSpace(_name.Text) ? _dnsName.Text.Trim() : _name.Text.Trim();
         Machine.DnsName = _dnsName.Text.Trim();
-        Machine.GroupName = _groupName.Text.Trim();
-        Machine.ColorKey = (_color.SelectedItem as ColorChoice)?.Key ?? "blue";
+        Machine.GroupId = (_group.SelectedItem as GroupChoice)?.Id;
+        Machine.GroupName = Machine.GroupId is null
+            ? ""
+            : _data.Groups.FirstOrDefault(group => group.Id == Machine.GroupId)?.Name ?? "";
+        Machine.ColorKey = (_color.SelectedItem as ColorChoice)?.Key ?? "";
         Machine.Notes = _notes.Text.Trim();
         Machine.CredentialProfileId = (_credential.SelectedItem as CredentialChoice)?.Id;
         Machine.IsFavorite = _favorite.Checked;
@@ -228,23 +257,9 @@ public sealed class MachineEditForm : Form
         public override string ToString() => Label;
     }
 
-    private sealed record ColorChoice(string Key, string Label)
+    private sealed record GroupChoice(Guid? Id, string Label)
     {
         public override string ToString() => Label;
-    }
-
-    private static class ColorChoices
-    {
-        public static readonly ColorChoice[] All =
-        [
-            new("blue", "Blau"),
-            new("green", "Gruen"),
-            new("amber", "Gelb"),
-            new("red", "Rot"),
-            new("violet", "Violett"),
-            new("cyan", "Cyan"),
-            new("slate", "Grau"),
-        ];
     }
 
     private static Panel Field(string label, TextBox input, string placeholder)

@@ -4,6 +4,7 @@ public sealed class CredentialManagerForm : Form
 {
     private readonly AppData _data;
     private readonly ListBox _list = new();
+    private readonly ComboBox _globalCredential = new();
 
     public CredentialManagerForm(AppData data)
     {
@@ -47,6 +48,13 @@ public sealed class CredentialManagerForm : Form
         _list.IntegralHeight = false;
         _list.DrawItem += DrawCredentialItem;
 
+        _globalCredential.DropDownStyle = ComboBoxStyle.DropDownList;
+        _globalCredential.FlatStyle = FlatStyle.Flat;
+        AppTheme.StyleInput(_globalCredential);
+        _globalCredential.SelectedIndexChanged += GlobalCredentialChanged;
+
+        var globalPanel = Field("Globaler Standard-Zugang", _globalCredential);
+
         var buttons = AppTheme.Footer();
         var close = AppTheme.Button("Fertig", primary: true);
         var remove = AppTheme.Button("Löschen");
@@ -70,6 +78,7 @@ public sealed class CredentialManagerForm : Form
         listWrap.Controls.Add(_list);
 
         root.Controls.Add(listWrap);
+        root.Controls.Add(globalPanel);
         root.Controls.Add(description);
         root.Controls.Add(title);
         Controls.Add(root);
@@ -105,6 +114,40 @@ public sealed class CredentialManagerForm : Form
     {
         _list.DataSource = null;
         _list.DataSource = _data.Credentials.OrderBy(credential => credential.DisplayName).ToList();
+        RefreshGlobalCredential();
+    }
+
+    private void RefreshGlobalCredential()
+    {
+        _globalCredential.SelectedIndexChanged -= GlobalCredentialChanged;
+        _globalCredential.Items.Clear();
+        _globalCredential.Items.Add(new CredentialChoice(null, "Aktueller Windows-Benutzer"));
+        foreach (var credential in _data.Credentials.OrderBy(credential => credential.DisplayName))
+        {
+            _globalCredential.Items.Add(new CredentialChoice(credential.Id, credential.DisplayName));
+        }
+
+        for (var index = 0; index < _globalCredential.Items.Count; index++)
+        {
+            if (_globalCredential.Items[index] is CredentialChoice choice && choice.Id == _data.GlobalCredentialProfileId)
+            {
+                _globalCredential.SelectedIndex = index;
+                _globalCredential.SelectedIndexChanged += GlobalCredentialChanged;
+                return;
+            }
+        }
+
+        _globalCredential.SelectedIndex = 0;
+        _data.GlobalCredentialProfileId = null;
+        _globalCredential.SelectedIndexChanged += GlobalCredentialChanged;
+    }
+
+    private void GlobalCredentialChanged(object? sender, EventArgs e)
+    {
+        if (_globalCredential.SelectedItem is CredentialChoice choice)
+        {
+            _data.GlobalCredentialProfileId = choice.Id;
+        }
     }
 
     private CredentialProfile? SelectedCredential() => _list.SelectedItem as CredentialProfile;
@@ -155,10 +198,39 @@ public sealed class CredentialManagerForm : Form
         }
 
         _data.Credentials.RemoveAll(item => item.Id == credential.Id);
+        if (_data.GlobalCredentialProfileId == credential.Id)
+        {
+            _data.GlobalCredentialProfileId = null;
+        }
         foreach (var machine in _data.Machines.Where(machine => machine.CredentialProfileId == credential.Id))
         {
             machine.CredentialProfileId = null;
         }
+        foreach (var group in _data.Groups.Where(group => group.CredentialProfileId == credential.Id))
+        {
+            group.CredentialProfileId = null;
+        }
         RefreshList();
+    }
+
+    private sealed record CredentialChoice(Guid? Id, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private static Panel Field(string label, Control input)
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 70,
+            Padding = new Padding(0, 8, 0, 0),
+        };
+        var labelControl = AppTheme.Label(label);
+        labelControl.Dock = DockStyle.Top;
+        input.Dock = DockStyle.Top;
+        panel.Controls.Add(input);
+        panel.Controls.Add(labelControl);
+        return panel;
     }
 }

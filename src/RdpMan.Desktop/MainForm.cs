@@ -183,15 +183,19 @@ public sealed class MainForm : Form
             Padding = new Padding(0, 14, 0, 0),
         };
         var credentials = AppTheme.Button("Zugänge");
+        var groups = AppTheme.Button("Gruppen");
         var ad = AppTheme.Button("AD Import");
         var backup = AppTheme.Button("Backup");
-        credentials.Width = 86;
-        ad.Width = 86;
-        backup.Width = 86;
+        credentials.Width = 68;
+        groups.Width = 72;
+        ad.Width = 76;
+        backup.Width = 68;
         credentials.Click += (_, _) => ManageCredentials();
+        groups.Click += (_, _) => ManageGroups();
         ad.Click += (_, _) => ImportFromAd();
         backup.Click += (_, _) => ShowBackupMenu(backup);
         bottomActions.Controls.Add(credentials);
+        bottomActions.Controls.Add(groups);
         bottomActions.Controls.Add(ad);
         bottomActions.Controls.Add(backup);
         bottomActions.Resize += (_, _) => CenterButtonRow(bottomActions, 14);
@@ -314,6 +318,7 @@ public sealed class MainForm : Form
     private string MachineTooltip(MachineEntry machine)
     {
         var credential = CredentialFor(machine)?.DisplayName ?? "Aktueller Windows-Benutzer";
+        var group = GroupFor(machine);
         var flags = new List<string>();
         if (machine.RedirectClipboard)
         {
@@ -337,9 +342,9 @@ public sealed class MainForm : Form
             machine.DisplayName,
             $"Host: {machine.DnsName}",
         };
-        if (!string.IsNullOrWhiteSpace(machine.GroupName))
+        if (group is not null)
         {
-            lines.Add($"Gruppe: {machine.GroupName}");
+            lines.Add($"Gruppe: {group.DisplayName}");
         }
         lines.Add($"Zugang: {credential}");
         lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
@@ -382,7 +387,7 @@ public sealed class MainForm : Form
 
         var secondary = machine.IsTemporary
             ? $"Ad hoc - {machine.DnsName}"
-            : string.IsNullOrWhiteSpace(machine.GroupName) ? machine.DnsName : $"{machine.GroupName} - {machine.DnsName}";
+            : GroupFor(machine) is not { } group ? machine.DnsName : $"{group.DisplayName} - {machine.DnsName}";
         e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 29);
 
         if (isConnected)
@@ -396,22 +401,46 @@ public sealed class MainForm : Form
     private void LoadData()
     {
         _data = _store.Load();
+        NormalizeData();
     }
 
-    private static Color MachineColor(MachineEntry machine, bool isConnected)
+    private void NormalizeData()
     {
-        var (light, dark) = machine.ColorKey switch
+        foreach (var machine in _data.Machines)
         {
-            "green" => (Color.FromArgb(134, 239, 172), Color.FromArgb(22, 163, 74)),
-            "amber" => (Color.FromArgb(253, 224, 71), Color.FromArgb(202, 138, 4)),
-            "red" => (Color.FromArgb(252, 165, 165), Color.FromArgb(220, 38, 38)),
-            "violet" => (Color.FromArgb(196, 181, 253), Color.FromArgb(124, 58, 237)),
-            "cyan" => (Color.FromArgb(103, 232, 249), Color.FromArgb(8, 145, 178)),
-            "slate" => (Color.FromArgb(148, 163, 184), Color.FromArgb(71, 85, 105)),
-            _ => (Color.FromArgb(147, 197, 253), Color.FromArgb(37, 99, 235)),
-        };
+            if (machine.GroupId is not null || string.IsNullOrWhiteSpace(machine.GroupName))
+            {
+                continue;
+            }
 
-        return isConnected ? dark : light;
+            var group = _data.Groups.FirstOrDefault(item => item.Name.Equals(machine.GroupName, StringComparison.OrdinalIgnoreCase));
+            if (group is null)
+            {
+                group = new MachineGroup
+                {
+                    Name = machine.GroupName.Trim(),
+                    ColorKey = string.IsNullOrWhiteSpace(machine.ColorKey) ? "blue" : machine.ColorKey,
+                };
+                _data.Groups.Add(group);
+            }
+
+            machine.GroupId = group.Id;
+        }
+    }
+
+    private Color MachineColor(MachineEntry machine, bool isConnected)
+    {
+        return ColorPalette.Marker(EffectiveColorKey(machine), isConnected);
+    }
+
+    private string EffectiveColorKey(MachineEntry machine)
+    {
+        if (!string.IsNullOrWhiteSpace(machine.ColorKey))
+        {
+            return machine.ColorKey;
+        }
+
+        return GroupFor(machine)?.ColorKey ?? "blue";
     }
 
     private void SaveData()
@@ -495,7 +524,7 @@ public sealed class MainForm : Form
             .Where(machine => MatchesFilter(machine, filter))
             .OrderByDescending(machine => machine.IsTemporary)
             .ThenByDescending(machine => machine.IsFavorite)
-            .ThenBy(machine => string.IsNullOrWhiteSpace(machine.GroupName) ? "~" : machine.GroupName)
+            .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
             .ThenBy(machine => machine.DisplayName)
             .ToList();
 
@@ -509,7 +538,7 @@ public sealed class MainForm : Form
         }
     }
 
-    private static bool MatchesFilter(MachineEntry machine, string filter)
+    private bool MatchesFilter(MachineEntry machine, string filter)
     {
         if (string.IsNullOrWhiteSpace(filter))
         {
@@ -519,6 +548,7 @@ public sealed class MainForm : Form
         return Contains(machine.DisplayName, filter)
             || Contains(machine.DnsName, filter)
             || Contains(machine.GroupName, filter)
+            || Contains(GroupFor(machine)?.DisplayName, filter)
             || Contains(machine.Notes, filter);
     }
 
@@ -550,9 +580,20 @@ public sealed class MainForm : Form
 
     private CredentialProfile? CredentialFor(MachineEntry machine)
     {
-        return machine.CredentialProfileId is null
+        var credentialId = machine.CredentialProfileId
+            ?? GroupFor(machine)?.CredentialProfileId
+            ?? _data.GlobalCredentialProfileId;
+
+        return credentialId is null
             ? null
-            : _data.Credentials.FirstOrDefault(credential => credential.Id == machine.CredentialProfileId);
+            : _data.Credentials.FirstOrDefault(credential => credential.Id == credentialId);
+    }
+
+    private MachineGroup? GroupFor(MachineEntry machine)
+    {
+        return machine.GroupId is null
+            ? null
+            : _data.Groups.FirstOrDefault(group => group.Id == machine.GroupId);
     }
 
     private void ShowSelectedSession()
@@ -884,6 +925,7 @@ public sealed class MainForm : Form
 
         machine.Name = dialog.Machine.Name;
         machine.DnsName = dialog.Machine.DnsName;
+        machine.GroupId = dialog.Machine.GroupId;
         machine.GroupName = dialog.Machine.GroupName;
         machine.ColorKey = dialog.Machine.ColorKey;
         machine.Notes = dialog.Machine.Notes;
@@ -941,6 +983,16 @@ public sealed class MainForm : Form
     private void ManageCredentials()
     {
         using var dialog = new CredentialManagerForm(_data);
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            SaveData();
+            RefreshMachineList();
+        }
+    }
+
+    private void ManageGroups()
+    {
+        using var dialog = new GroupManagerForm(_data);
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             SaveData();
