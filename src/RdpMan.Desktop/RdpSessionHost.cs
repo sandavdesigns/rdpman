@@ -105,9 +105,11 @@ public sealed class RdpSessionHost : IRemoteSessionHost
         SetProperty(advancedSettings, "EnableCredSspSupport", true);
         SetProperty(advancedSettings, "AuthenticationLevel", 0);
         SetProperty(advancedSettings2, "SmartSizing", true);
-        SetProperty(advancedSettings, "RedirectClipboard", false);
-        SetProperty(advancedSettings, "RedirectPrinters", false);
-        SetProperty(advancedSettings, "RedirectSmartCards", false);
+        SetProperty(advancedSettings, "RedirectClipboard", Machine.RedirectClipboard);
+        SetProperty(advancedSettings, "RedirectPrinters", Machine.RedirectPrinters);
+        SetProperty(advancedSettings, "RedirectSmartCards", Machine.RedirectSmartCards);
+        SetProperty(advancedSettings, "RedirectWebAuthn", Machine.RedirectWebAuthn);
+        SetProperty(advancedSettings2, "RedirectWebAuthn", Machine.RedirectWebAuthn);
         SetProperty(advancedSettings, "DisplayConnectionBar", false);
         SetProperty(advancedSettings, "PinConnectionBar", false);
 

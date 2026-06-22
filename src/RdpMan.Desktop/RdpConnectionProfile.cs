@@ -54,10 +54,10 @@ public static class RdpConnectionProfile
             "smart sizing:i:1",
             "dynamic resolution:i:0",
             "desktop size id:i:0",
-            "redirectclipboard:i:0",
-            "redirectprinters:i:0",
-            "redirectsmartcards:i:0",
-            "redirectwebauthn:i:0",
+            $"redirectclipboard:i:{Flag(machine.RedirectClipboard)}",
+            $"redirectprinters:i:{Flag(machine.RedirectPrinters)}",
+            $"redirectsmartcards:i:{Flag(machine.RedirectSmartCards)}",
+            $"redirectwebauthn:i:{Flag(machine.RedirectWebAuthn)}",
             "authentication level:i:0",
             "enablecredsspsupport:i:1",
             "prompt for credentials:i:0",
@@ -84,4 +84,6 @@ public static class RdpConnectionProfile
         var dotIndex = host.IndexOf('.');
         return dotIndex > 0 ? host[..dotIndex] : host;
     }
+
+    private static int Flag(bool value) => value ? 1 : 0;
 }

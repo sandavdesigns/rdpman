@@ -8,9 +8,12 @@ public sealed class MainForm : Form
     private readonly Dictionary<Guid, IRemoteSessionHost> _sessions = [];
     private readonly List<MachineEntry> _temporaryMachines = [];
     private bool _restoredRememberedSessions;
+    private Guid? _toolTipMachineId;
     private AppData _data = new();
 
     private readonly ListBox _machineList = new();
+    private readonly TextBox _search = AppTheme.TextBox();
+    private readonly ToolTip _machineToolTip = new();
     private readonly Label _machineCount = new();
     private readonly Panel _rdpPanel = new();
     private readonly Label _placeholder = new();
@@ -137,6 +140,22 @@ public sealed class MainForm : Form
         quickActions.Controls.Add(adHoc);
         quickActions.Resize += (_, _) => CenterButtonRow(quickActions, 0);
 
+        _search.PlaceholderText = "Suchen...";
+        _search.BorderStyle = BorderStyle.FixedSingle;
+        _search.BackColor = Color.FromArgb(31, 41, 55);
+        _search.ForeColor = Color.White;
+        _search.Margin = new Padding(0);
+        _search.TextChanged += (_, _) => RefreshMachineList();
+        var searchWrap = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 48,
+            BackColor = AppTheme.Sidebar,
+            Padding = new Padding(6, 8, 6, 8),
+        };
+        _search.Dock = DockStyle.Fill;
+        searchWrap.Controls.Add(_search);
+
         _machineList.Dock = DockStyle.Fill;
         _machineList.DisplayMember = nameof(MachineEntry.DisplayName);
         _machineList.BorderStyle = BorderStyle.None;
@@ -150,6 +169,8 @@ public sealed class MainForm : Form
         _machineList.SelectedIndexChanged += (_, _) => ShowSelectedSession();
         _machineList.DoubleClick += (_, _) => ConnectSelected();
         _machineList.MouseDown += SelectMachineForContextMenu;
+        _machineList.MouseMove += ShowMachineTooltip;
+        _machineList.MouseLeave += (_, _) => HideMachineTooltip();
         BuildMachineContextMenu();
 
         var bottomActions = new FlowLayoutPanel
@@ -177,6 +198,7 @@ public sealed class MainForm : Form
 
         sidebar.Controls.Add(_machineList);
         sidebar.Controls.Add(bottomActions);
+        sidebar.Controls.Add(searchWrap);
         sidebar.Controls.Add(quickActions);
         sidebar.Controls.Add(header);
         return sidebar;
@@ -214,6 +236,7 @@ public sealed class MainForm : Form
         var connectAs = _machineMenu.Items.Add("Verbinden als...", null, (_, _) => ConnectSelectedAs());
         _machineMenu.Items.Add(new ToolStripSeparator());
         var disconnect = _machineMenu.Items.Add("Abmelden", null, (_, _) => DisconnectSelected());
+        var favorite = _machineMenu.Items.Add("Favorit umschalten", null, (_, _) => ToggleFavoriteSelected());
         var edit = _machineMenu.Items.Add("Bearbeiten", null, (_, _) => EditMachine());
         var delete = _machineMenu.Items.Add("Eintrag entfernen", null, (_, _) => DeleteMachine());
         var ping = _machineMenu.Items.Add("Ping -t", null, (_, _) => PingSelected());
@@ -231,6 +254,7 @@ public sealed class MainForm : Form
             connect.Enabled = true;
             connectAs.Enabled = true;
             disconnect.Enabled = isConnected;
+            favorite.Enabled = !machine.IsTemporary;
             edit.Enabled = !machine.IsTemporary;
             delete.Enabled = true;
             ping.Enabled = true;
@@ -262,6 +286,72 @@ public sealed class MainForm : Form
         _machineMenu.Show(_machineList, e.Location);
     }
 
+    private void ShowMachineTooltip(object? sender, MouseEventArgs e)
+    {
+        var index = _machineList.IndexFromPoint(e.Location);
+        if (index < 0 || index >= _machineList.Items.Count)
+        {
+            HideMachineTooltip();
+            return;
+        }
+
+        var machine = (MachineEntry)_machineList.Items[index];
+        if (_toolTipMachineId == machine.Id)
+        {
+            return;
+        }
+
+        _toolTipMachineId = machine.Id;
+        _machineToolTip.SetToolTip(_machineList, MachineTooltip(machine));
+    }
+
+    private void HideMachineTooltip()
+    {
+        _toolTipMachineId = null;
+        _machineToolTip.SetToolTip(_machineList, "");
+    }
+
+    private string MachineTooltip(MachineEntry machine)
+    {
+        var credential = CredentialFor(machine)?.DisplayName ?? "Aktueller Windows-Benutzer";
+        var flags = new List<string>();
+        if (machine.RedirectClipboard)
+        {
+            flags.Add("Zwischenablage");
+        }
+        if (machine.RedirectPrinters)
+        {
+            flags.Add("Drucker");
+        }
+        if (machine.RedirectSmartCards)
+        {
+            flags.Add("Smartcards");
+        }
+        if (machine.RedirectWebAuthn)
+        {
+            flags.Add("WebAuthn");
+        }
+
+        var lines = new List<string>
+        {
+            machine.DisplayName,
+            $"Host: {machine.DnsName}",
+        };
+        if (!string.IsNullOrWhiteSpace(machine.GroupName))
+        {
+            lines.Add($"Gruppe: {machine.GroupName}");
+        }
+        lines.Add($"Zugang: {credential}");
+        lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
+        if (!string.IsNullOrWhiteSpace(machine.Notes))
+        {
+            lines.Add("");
+            lines.Add(machine.Notes);
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
     private void DrawMachineItem(object? sender, DrawItemEventArgs e)
     {
         if (e.Index < 0 || e.Index >= _machineList.Items.Count)
@@ -271,27 +361,57 @@ public sealed class MainForm : Form
 
         var machine = (MachineEntry)_machineList.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+        var isConnected = _sessions.TryGetValue(machine.Id, out var session) && session.IsConnected;
         var bounds = Rectangle.Inflate(e.Bounds, -2, -4);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
             ? selected ? Color.FromArgb(22, 78, 99) : Color.FromArgb(19, 50, 60)
             : selected ? AppTheme.SidebarAlt : AppTheme.Sidebar);
-        using var accent = new SolidBrush(machine.IsTemporary
-            ? Color.FromArgb(20, 184, 166)
-            : selected ? AppTheme.Accent : Color.FromArgb(71, 85, 105));
+        using var accent = new SolidBrush(machine.IsTemporary ? Color.FromArgb(20, 184, 166) : MachineColor(machine, isConnected));
         using var title = new SolidBrush(Color.White);
         using var muted = new SolidBrush(machine.IsTemporary ? Color.FromArgb(153, 246, 228) : Color.FromArgb(148, 163, 184));
+        using var badgeBackground = new SolidBrush(Color.FromArgb(34, 197, 94));
+        using var badgeText = new SolidBrush(Color.FromArgb(5, 46, 22));
         using var titleFont = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
+        using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
 
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
-        e.Graphics.DrawString(machine.DisplayName, titleFont, title, bounds.Left + 48, bounds.Top + 9);
-        e.Graphics.DrawString(machine.IsTemporary ? $"Ad hoc - {machine.DnsName}" : machine.DnsName, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 30);
+        var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
+        e.Graphics.DrawString(displayName, titleFont, title, bounds.Left + 48, bounds.Top + 8);
+
+        var secondary = machine.IsTemporary
+            ? $"Ad hoc - {machine.DnsName}"
+            : string.IsNullOrWhiteSpace(machine.GroupName) ? machine.DnsName : $"{machine.GroupName} - {machine.DnsName}";
+        e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 29);
+
+        if (isConnected)
+        {
+            var badge = new Rectangle(bounds.Right - 48, bounds.Top + 16, 38, 18);
+            e.Graphics.FillRoundedRectangle(badgeBackground, badge, 6);
+            e.Graphics.DrawString("LIVE", badgeFont, badgeText, badge.Left + 7, badge.Top + 3);
+        }
     }
 
     private void LoadData()
     {
         _data = _store.Load();
+    }
+
+    private static Color MachineColor(MachineEntry machine, bool isConnected)
+    {
+        var (light, dark) = machine.ColorKey switch
+        {
+            "green" => (Color.FromArgb(134, 239, 172), Color.FromArgb(22, 163, 74)),
+            "amber" => (Color.FromArgb(253, 224, 71), Color.FromArgb(202, 138, 4)),
+            "red" => (Color.FromArgb(252, 165, 165), Color.FromArgb(220, 38, 38)),
+            "violet" => (Color.FromArgb(196, 181, 253), Color.FromArgb(124, 58, 237)),
+            "cyan" => (Color.FromArgb(103, 232, 249), Color.FromArgb(8, 145, 178)),
+            "slate" => (Color.FromArgb(148, 163, 184), Color.FromArgb(71, 85, 105)),
+            _ => (Color.FromArgb(147, 197, 253), Color.FromArgb(37, 99, 235)),
+        };
+
+        return isConnected ? dark : light;
     }
 
     private void SaveData()
@@ -369,9 +489,13 @@ public sealed class MainForm : Form
     private void RefreshMachineList()
     {
         var selectedId = SelectedMachine()?.Id;
+        var filter = _search.Text.Trim();
         var machines = _data.Machines
             .Concat(_temporaryMachines)
+            .Where(machine => MatchesFilter(machine, filter))
             .OrderByDescending(machine => machine.IsTemporary)
+            .ThenByDescending(machine => machine.IsFavorite)
+            .ThenBy(machine => string.IsNullOrWhiteSpace(machine.GroupName) ? "~" : machine.GroupName)
             .ThenBy(machine => machine.DisplayName)
             .ToList();
 
@@ -383,6 +507,25 @@ public sealed class MainForm : Form
         {
             _machineList.SelectedItem = machines.FirstOrDefault(machine => machine.Id == selectedId);
         }
+    }
+
+    private static bool MatchesFilter(MachineEntry machine, string filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        return Contains(machine.DisplayName, filter)
+            || Contains(machine.DnsName, filter)
+            || Contains(machine.GroupName, filter)
+            || Contains(machine.Notes, filter);
+    }
+
+    private static bool Contains(string? value, string filter)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && value.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private void SelectMachine(Guid machineId)
@@ -502,6 +645,7 @@ public sealed class MainForm : Form
             ShowSelectedSession();
             session.Connect();
             RememberSession(machine.Id);
+            _machineList.Invalidate();
             _statusLabel.Text = $"Verbinde mit {machine.DisplayName}";
             return true;
         }
@@ -563,6 +707,7 @@ public sealed class MainForm : Form
         try
         {
             session.Reconnect();
+            _machineList.Invalidate();
             _statusLabel.Text = $"Reconnect: {session.Machine.DisplayName}";
         }
         catch (Exception ex)
@@ -590,7 +735,22 @@ public sealed class MainForm : Form
         ForgetSession(machine.Id);
         RemoveTemporaryMachine(machine.Id);
         ShowSelectedSession();
+        _machineList.Invalidate();
         _statusLabel.Text = $"Getrennt: {machine.DisplayName}";
+    }
+
+    private void ToggleFavoriteSelected()
+    {
+        var machine = SelectedMachine();
+        if (machine is null || machine.IsTemporary)
+        {
+            return;
+        }
+
+        machine.IsFavorite = !machine.IsFavorite;
+        SaveData();
+        RefreshMachineList();
+        SelectMachine(machine.Id);
     }
 
     private void PingSelected()
@@ -724,8 +884,15 @@ public sealed class MainForm : Form
 
         machine.Name = dialog.Machine.Name;
         machine.DnsName = dialog.Machine.DnsName;
+        machine.GroupName = dialog.Machine.GroupName;
+        machine.ColorKey = dialog.Machine.ColorKey;
         machine.Notes = dialog.Machine.Notes;
         machine.CredentialProfileId = dialog.Machine.CredentialProfileId;
+        machine.IsFavorite = dialog.Machine.IsFavorite;
+        machine.RedirectClipboard = dialog.Machine.RedirectClipboard;
+        machine.RedirectPrinters = dialog.Machine.RedirectPrinters;
+        machine.RedirectSmartCards = dialog.Machine.RedirectSmartCards;
+        machine.RedirectWebAuthn = dialog.Machine.RedirectWebAuthn;
         SaveData();
         RefreshMachineList();
     }

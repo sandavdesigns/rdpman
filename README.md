@@ -8,8 +8,12 @@ RDP Man is a native Windows desktop application for managing and switching betwe
 - Multiple open RDP sessions with sidebar switching
 - Connect, connect as, reconnect, disconnect, remove entry, and continuous ping actions
 - Ad hoc RDP sessions that exist only while connected
+- Instant machine search across name, host, group, and notes
+- Per-machine colors, favorites, groups, notes, and hover tooltips
+- Active session badges and connected-state color indicators
 - Local credential profiles with DPAPI-protected passwords
 - Per-machine default credential assignment
+- Per-machine RDP redirection controls for clipboard, printers, smartcards, and WebAuthn
 - Active Directory import by LDAP path / OU
 - CSV import for exported AD computer lists
 - Backup and restore for machines, credentials, and reconnect state

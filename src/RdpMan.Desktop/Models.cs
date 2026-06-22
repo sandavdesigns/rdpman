@@ -15,8 +15,15 @@ public sealed class MachineEntry
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string DnsName { get; set; } = "";
+    public string GroupName { get; set; } = "";
+    public string ColorKey { get; set; } = "blue";
     public string? Notes { get; set; }
     public Guid? CredentialProfileId { get; set; }
+    public bool IsFavorite { get; set; }
+    public bool RedirectClipboard { get; set; }
+    public bool RedirectPrinters { get; set; }
+    public bool RedirectSmartCards { get; set; }
+    public bool RedirectWebAuthn { get; set; }
 
     [JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? DnsName : Name;
