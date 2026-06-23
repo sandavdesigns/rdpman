@@ -32,9 +32,9 @@ public sealed class SetupForm : Form
         _importBackup = importBackup;
 
         Text = "Setup";
-        Width = 820;
-        Height = 620;
-        MinimumSize = new Size(720, 520);
+        Width = 880;
+        Height = 700;
+        MinimumSize = new Size(780, 640);
         AppTheme.ApplyWindow(this);
 
         BuildLayout();
@@ -177,7 +177,7 @@ public sealed class SetupForm : Form
         var info = new Label
         {
             Dock = DockStyle.Top,
-            Height = 48,
+            Height = 34,
             Text = "Diese Freigaben gelten fuer neue Rechner und fuer Eintraege, die globale Freigaben verwenden.",
             ForeColor = AppTheme.MutedText,
             Font = AppTheme.UiFont,
@@ -212,11 +212,11 @@ public sealed class SetupForm : Form
         var options = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 116,
+            Height = 62,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             BackColor = AppTheme.Surface,
-            Padding = new Padding(0, 8, 0, 0),
+            Padding = new Padding(0, 4, 0, 0),
         };
         options.Controls.Add(_globalRedirectClipboard);
         options.Controls.Add(_globalRedirectPrinters);
@@ -226,11 +226,11 @@ public sealed class SetupForm : Form
         var sessionOptions = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 76,
+            Height = 42,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             BackColor = AppTheme.Surface,
-            Padding = new Padding(0, 8, 0, 0),
+            Padding = new Padding(0, 4, 0, 0),
         };
         sessionOptions.Controls.Add(_rememberConnectedSessions);
         sessionOptions.Controls.Add(_restoreConnectedSessionsOnStart);
@@ -238,16 +238,19 @@ public sealed class SetupForm : Form
         var autoReconnectActions = ActionRow(
             ("Entfernen", RemoveSelectedAutoReconnect, false),
             ("Fehlende entfernen", RemoveMissingAutoReconnect, false));
+        autoReconnectActions.Height = 44;
         var autoReconnectInfo = new Label
         {
             Dock = DockStyle.Top,
-            Height = 30,
+            Height = 26,
             Text = "Gemerkte Wiederverbindungen. Fehlende Rechner koennen hier entfernt werden.",
             ForeColor = AppTheme.MutedText,
             Font = AppTheme.SmallFont,
         };
 
-        page.Controls.Add(ListWrap(_autoReconnect));
+        var autoReconnectWrap = ListWrap(_autoReconnect);
+        autoReconnectWrap.MinimumSize = new Size(0, 150);
+        page.Controls.Add(autoReconnectWrap);
         page.Controls.Add(autoReconnectActions);
         page.Controls.Add(autoReconnectInfo);
         page.Controls.Add(sessionOptions);
