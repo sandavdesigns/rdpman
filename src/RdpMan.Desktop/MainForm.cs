@@ -7,7 +7,9 @@ public sealed class MainForm : Form
 {
     private readonly DataStore _store = new();
     private readonly Dictionary<Guid, IRemoteSessionHost> _sessions = [];
+    private readonly Dictionary<Guid, DateTime> _sessionStartedAt = [];
     private readonly List<MachineEntry> _temporaryMachines = [];
+    private readonly System.Windows.Forms.Timer _sessionSweepTimer = new();
     private bool _restoredRememberedSessions;
     private Guid? _toolTipMachineId;
     private AppData _data = new();
@@ -34,6 +36,10 @@ public sealed class MainForm : Form
         BuildLayout();
         LoadData();
         RefreshMachineList();
+
+        _sessionSweepTimer.Interval = 1500;
+        _sessionSweepTimer.Tick += (_, _) => SweepDisconnectedSessions();
+        _sessionSweepTimer.Start();
     }
 
     protected override void OnShown(EventArgs e)
@@ -44,6 +50,7 @@ public sealed class MainForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        _sessionSweepTimer.Stop();
         RememberConnectedSessions();
         SaveData();
         foreach (var session in _sessions.Values)
@@ -233,7 +240,8 @@ public sealed class MainForm : Form
                 return;
             }
 
-            var isConnected = _sessions.TryGetValue(machine.Id, out var session) && session.IsConnected;
+            SweepDisconnectedSessions(refreshUi: false);
+            var isConnected = IsSessionConnected(machine.Id);
             connect.Enabled = true;
             connectAs.Enabled = true;
             disconnect.Enabled = isConnected;
@@ -368,7 +376,7 @@ public sealed class MainForm : Form
 
         var machine = (MachineEntry)_machineList.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-        var isConnected = _sessions.TryGetValue(machine.Id, out var session) && session.IsConnected;
+        var isConnected = IsSessionConnected(machine.Id);
         var bounds = Rectangle.Inflate(e.Bounds, -2, -4);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
@@ -474,6 +482,7 @@ public sealed class MainForm : Form
 
     private void RememberConnectedSessions()
     {
+        SweepDisconnectedSessions(refreshUi: false);
         _data.AutoReconnectMachineIds = _sessions
             .Where(entry => entry.Value.IsConnected && !_temporaryMachines.Any(machine => machine.Id == entry.Key))
             .Select(entry => entry.Key)
@@ -577,7 +586,95 @@ public sealed class MainForm : Form
     private IRemoteSessionHost? ActiveSession()
     {
         var machine = SelectedMachine();
-        return machine is not null && _sessions.TryGetValue(machine.Id, out var session) ? session : null;
+        return machine is not null && TryGetLiveSession(machine.Id, out var session) ? session : null;
+    }
+
+    private bool TryGetLiveSession(Guid machineId, out IRemoteSessionHost session)
+    {
+        if (!_sessions.TryGetValue(machineId, out session!))
+        {
+            return false;
+        }
+
+        if (session.IsConnected)
+        {
+            _sessionStartedAt.Remove(machineId);
+            return true;
+        }
+
+        if (IsSessionStarting(machineId))
+        {
+            return true;
+        }
+
+        CleanupDeadSession(machineId, session);
+        return false;
+    }
+
+    private bool IsSessionConnected(Guid machineId)
+    {
+        if (!_sessions.TryGetValue(machineId, out var session))
+        {
+            return false;
+        }
+
+        if (!session.IsConnected)
+        {
+            return false;
+        }
+
+        _sessionStartedAt.Remove(machineId);
+        return true;
+    }
+
+    private bool IsSessionStarting(Guid machineId)
+    {
+        return _sessionStartedAt.TryGetValue(machineId, out var startedAt)
+            && DateTime.UtcNow - startedAt < TimeSpan.FromSeconds(8);
+    }
+
+    private void SweepDisconnectedSessions(bool refreshUi = true)
+    {
+        var selectedId = SelectedMachine()?.Id;
+        var removedAny = false;
+
+        foreach (var (machineId, session) in _sessions.ToList())
+        {
+            if (session.IsConnected)
+            {
+                _sessionStartedAt.Remove(machineId);
+                continue;
+            }
+
+            if (IsSessionStarting(machineId))
+            {
+                continue;
+            }
+
+            CleanupDeadSession(machineId, session);
+            removedAny = true;
+        }
+
+        if (!removedAny || !refreshUi)
+        {
+            return;
+        }
+
+        RefreshMachineList();
+        if (selectedId is not null)
+        {
+            SelectMachine(selectedId.Value);
+        }
+        ShowSelectedSession();
+    }
+
+    private void CleanupDeadSession(Guid machineId, IRemoteSessionHost session)
+    {
+        session.Dispose();
+        _sessions.Remove(machineId);
+        _sessionStartedAt.Remove(machineId);
+        ForgetSession(machineId);
+        _temporaryMachines.RemoveAll(machine => machine.Id == machineId);
     }
 
     private CredentialProfile? CredentialFor(MachineEntry machine)
@@ -612,6 +709,12 @@ public sealed class MainForm : Form
             return;
         }
 
+        ShowSessionControl(session);
+    }
+
+    private void ShowSessionControl(IRemoteSessionHost session)
+    {
+        _rdpPanel.Controls.Clear();
         _rdpPanel.Controls.Add(session.Control);
         session.ResizeToHost();
         _statusLabel.Text = $"{session.Machine.DisplayName} verbunden";
@@ -677,15 +780,17 @@ public sealed class MainForm : Form
             {
                 existingSession.Dispose();
                 _sessions.Remove(machine.Id);
+                _sessionStartedAt.Remove(machine.Id);
             }
 
             if (!_sessions.TryGetValue(machine.Id, out var session))
             {
                 session = CreateSessionHost(machine, credential);
                 _sessions[machine.Id] = session;
+                _sessionStartedAt[machine.Id] = DateTime.UtcNow;
             }
 
-            ShowSelectedSession();
+            ShowSessionControl(session);
             session.Connect();
             RememberSession(machine.Id);
             _machineList.Invalidate();
@@ -698,6 +803,7 @@ public sealed class MainForm : Form
             {
                 failedSession.Dispose();
                 _sessions.Remove(machine.Id);
+                _sessionStartedAt.Remove(machine.Id);
             }
             ForgetSession(machine.Id);
             RemoveTemporaryMachine(machine.Id);
@@ -735,6 +841,7 @@ public sealed class MainForm : Form
         {
             session.Dispose();
             _sessions.Remove(machineId);
+            _sessionStartedAt.Remove(machineId);
         }
     }
 
@@ -775,6 +882,7 @@ public sealed class MainForm : Form
 
         session.Dispose();
         _sessions.Remove(machine.Id);
+        _sessionStartedAt.Remove(machine.Id);
         ForgetSession(machine.Id);
         RemoveTemporaryMachine(machine.Id);
         ShowSelectedSession();
