@@ -20,6 +20,8 @@ public sealed class SetupForm : Form
     private readonly CheckBox _globalRedirectPrinters = new();
     private readonly CheckBox _globalRedirectSmartCards = new();
     private readonly CheckBox _globalRedirectWebAuthn = new();
+    private readonly CheckBox _rememberConnectedSessions = new();
+    private readonly CheckBox _restoreConnectedSessionsOnStart = new();
     private readonly List<string> _previewNames = [];
 
     public bool DataChanged { get; private set; }
@@ -185,16 +187,22 @@ public sealed class SetupForm : Form
         StyleCheckBox(_globalRedirectPrinters, "Drucker umleiten");
         StyleCheckBox(_globalRedirectSmartCards, "Smartcards umleiten");
         StyleCheckBox(_globalRedirectWebAuthn, "WebAuthn / Windows Hello erlauben");
+        StyleCheckBox(_rememberConnectedSessions, "Verbundene Rechner beim Beenden merken");
+        StyleCheckBox(_restoreConnectedSessionsOnStart, "Gemerkte Rechner beim Start automatisch verbinden");
 
         _globalRedirectClipboard.Checked = _data.GlobalRedirectClipboard;
         _globalRedirectPrinters.Checked = _data.GlobalRedirectPrinters;
         _globalRedirectSmartCards.Checked = _data.GlobalRedirectSmartCards;
         _globalRedirectWebAuthn.Checked = _data.GlobalRedirectWebAuthn;
+        _rememberConnectedSessions.Checked = _data.RememberConnectedSessions;
+        _restoreConnectedSessionsOnStart.Checked = _data.RestoreConnectedSessionsOnStart;
 
         _globalRedirectClipboard.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _globalRedirectPrinters.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _globalRedirectSmartCards.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _globalRedirectWebAuthn.CheckedChanged += (_, _) => UpdateGlobalRedirects();
+        _rememberConnectedSessions.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
+        _restoreConnectedSessionsOnStart.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
 
         var options = new FlowLayoutPanel
         {
@@ -210,7 +218,20 @@ public sealed class SetupForm : Form
         options.Controls.Add(_globalRedirectSmartCards);
         options.Controls.Add(_globalRedirectWebAuthn);
 
+        var sessionOptions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 76,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            BackColor = AppTheme.Surface,
+            Padding = new Padding(0, 8, 0, 0),
+        };
+        sessionOptions.Controls.Add(_rememberConnectedSessions);
+        sessionOptions.Controls.Add(_restoreConnectedSessionsOnStart);
+
         page.Controls.Add(options);
+        page.Controls.Add(sessionOptions);
         page.Controls.Add(info);
         return page;
     }
@@ -343,6 +364,17 @@ public sealed class SetupForm : Form
         _data.GlobalRedirectPrinters = _globalRedirectPrinters.Checked;
         _data.GlobalRedirectSmartCards = _globalRedirectSmartCards.Checked;
         _data.GlobalRedirectWebAuthn = _globalRedirectWebAuthn.Checked;
+        DataChanged = true;
+    }
+
+    private void UpdateSessionMemoryOptions()
+    {
+        _data.RememberConnectedSessions = _rememberConnectedSessions.Checked;
+        _data.RestoreConnectedSessionsOnStart = _restoreConnectedSessionsOnStart.Checked;
+        if (!_data.RememberConnectedSessions)
+        {
+            _data.AutoReconnectMachineIds.Clear();
+        }
         DataChanged = true;
     }
 

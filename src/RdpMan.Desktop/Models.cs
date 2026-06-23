@@ -14,6 +14,8 @@ public sealed class AppData
     public bool GlobalRedirectPrinters { get; set; }
     public bool GlobalRedirectSmartCards { get; set; }
     public bool GlobalRedirectWebAuthn { get; set; }
+    public bool RememberConnectedSessions { get; set; } = true;
+    public bool RestoreConnectedSessionsOnStart { get; set; } = true;
 }
 
 public sealed class MachineGroup

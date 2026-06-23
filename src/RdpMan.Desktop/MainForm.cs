@@ -184,6 +184,7 @@ public sealed class MainForm : Form
         _connectedHeader.Font = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
         _connectedHeader.Padding = new Padding(10, 7, 0, 0);
         _connectedHeader.BackColor = AppTheme.Sidebar;
+        _connectedHeader.Paint += DrawConnectedSeparator;
         _connectedHeader.Visible = false;
         _connectedMachineList.Dock = DockStyle.Top;
         _connectedMachineList.Visible = false;
@@ -229,6 +230,12 @@ public sealed class MainForm : Form
         list.MouseMove += ShowMachineTooltip;
         list.MouseLeave += (_, _) => HideMachineTooltip();
         list.MouseWheel += (_, _) => _machineListHost.Invalidate();
+    }
+
+    private void DrawConnectedSeparator(object? sender, PaintEventArgs e)
+    {
+        using var pen = new Pen(Color.FromArgb(51, 65, 85), 1);
+        e.Graphics.DrawLine(pen, 10, _connectedHeader.Height - 1, _connectedHeader.Width - 10, _connectedHeader.Height - 1);
     }
 
     private void LayoutMachineList()
@@ -568,6 +575,11 @@ public sealed class MainForm : Form
 
     private void RememberSession(Guid machineId)
     {
+        if (!_data.RememberConnectedSessions)
+        {
+            return;
+        }
+
         if (_temporaryMachines.Any(machine => machine.Id == machineId))
         {
             return;
@@ -590,6 +602,12 @@ public sealed class MainForm : Form
 
     private void RememberConnectedSessions()
     {
+        if (!_data.RememberConnectedSessions)
+        {
+            _data.AutoReconnectMachineIds.Clear();
+            return;
+        }
+
         SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
         _data.AutoReconnectMachineIds = _sessions
             .Where(entry => entry.Value.IsConnected && !_temporaryMachines.Any(machine => machine.Id == entry.Key))
@@ -606,6 +624,11 @@ public sealed class MainForm : Form
         }
 
         _restoredRememberedSessions = true;
+        if (!_data.RestoreConnectedSessionsOnStart)
+        {
+            return;
+        }
+
         var rememberedIds = _data.AutoReconnectMachineIds
             .Distinct()
             .ToList();
