@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LordOfThePings</AssemblyName>
     <RootNamespace>RdpMan.Desktop</RootNamespace>
-    <Version>0.1.22</Version>
+    <Version>0.1.23</Version>
     <Authors>SANDAV</Authors>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>

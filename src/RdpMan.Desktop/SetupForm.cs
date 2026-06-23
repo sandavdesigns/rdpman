@@ -20,6 +20,7 @@ public sealed class SetupForm : Form
     private readonly CheckBox _globalRedirectWebAuthn = new();
     private readonly CheckBox _rememberConnectedSessions = new();
     private readonly CheckBox _restoreConnectedSessionsOnStart = new();
+    private readonly ListBox _autoReconnect = new();
     private readonly List<string> _previewNames = [];
 
     public bool DataChanged { get; private set; }
@@ -40,6 +41,7 @@ public sealed class SetupForm : Form
         RefreshCredentials();
         RefreshGroups();
         RefreshImportDefaults();
+        RefreshAutoReconnectList();
     }
 
     private void BuildLayout()
@@ -201,6 +203,11 @@ public sealed class SetupForm : Form
         _globalRedirectWebAuthn.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _rememberConnectedSessions.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
         _restoreConnectedSessionsOnStart.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
+        _autoReconnect.Dock = DockStyle.Fill;
+        _autoReconnect.BorderStyle = BorderStyle.None;
+        _autoReconnect.BackColor = AppTheme.SurfaceAlt;
+        _autoReconnect.Font = AppTheme.UiFont;
+        _autoReconnect.ItemHeight = 24;
 
         var options = new FlowLayoutPanel
         {
@@ -228,8 +235,23 @@ public sealed class SetupForm : Form
         sessionOptions.Controls.Add(_rememberConnectedSessions);
         sessionOptions.Controls.Add(_restoreConnectedSessionsOnStart);
 
-        page.Controls.Add(options);
+        var autoReconnectActions = ActionRow(
+            ("Entfernen", RemoveSelectedAutoReconnect, false),
+            ("Fehlende entfernen", RemoveMissingAutoReconnect, false));
+        var autoReconnectInfo = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 30,
+            Text = "Gemerkte Wiederverbindungen. Fehlende Rechner koennen hier entfernt werden.",
+            ForeColor = AppTheme.MutedText,
+            Font = AppTheme.SmallFont,
+        };
+
+        page.Controls.Add(ListWrap(_autoReconnect));
+        page.Controls.Add(autoReconnectActions);
+        page.Controls.Add(autoReconnectInfo);
         page.Controls.Add(sessionOptions);
+        page.Controls.Add(options);
         page.Controls.Add(info);
         return page;
     }
@@ -372,8 +394,58 @@ public sealed class SetupForm : Form
         if (!_data.RememberConnectedSessions)
         {
             _data.AutoReconnectMachineIds.Clear();
+            RefreshAutoReconnectList();
         }
         DataChanged = true;
+    }
+
+    private void RefreshAutoReconnectList()
+    {
+        var items = _data.AutoReconnectMachineIds
+            .Distinct()
+            .Select(id =>
+            {
+                var machine = _data.Machines.FirstOrDefault(item => item.Id == id);
+                return new AutoReconnectChoice(
+                    id,
+                    machine?.DisplayName ?? $"Fehlender Rechner ({id})",
+                    machine is null);
+            })
+            .OrderByDescending(item => item.Missing)
+            .ThenBy(item => item.Label)
+            .ToList();
+
+        _autoReconnect.DataSource = null;
+        _autoReconnect.DataSource = items;
+    }
+
+    private void RemoveSelectedAutoReconnect()
+    {
+        if (_autoReconnect.SelectedItem is not AutoReconnectChoice choice)
+        {
+            return;
+        }
+
+        if (_data.AutoReconnectMachineIds.RemoveAll(id => id == choice.Id) == 0)
+        {
+            return;
+        }
+
+        DataChanged = true;
+        RefreshAutoReconnectList();
+    }
+
+    private void RemoveMissingAutoReconnect()
+    {
+        var existingIds = _data.Machines.Select(machine => machine.Id).ToHashSet();
+        var removed = _data.AutoReconnectMachineIds.RemoveAll(id => !existingIds.Contains(id));
+        if (removed == 0)
+        {
+            return;
+        }
+
+        DataChanged = true;
+        RefreshAutoReconnectList();
     }
 
     private CredentialProfile? SelectedCredential() => _credentials.SelectedItem as CredentialProfile;
@@ -748,6 +820,11 @@ public sealed class SetupForm : Form
     private sealed record GroupChoice(Guid? Id, string Label)
     {
         public override string ToString() => Label;
+    }
+
+    private sealed record AutoReconnectChoice(Guid Id, string Label, bool Missing)
+    {
+        public override string ToString() => Missing ? $"! {Label}" : Label;
     }
 
     private static string? Value(SearchResult result, string property)
