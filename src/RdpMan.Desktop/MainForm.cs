@@ -645,7 +645,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (_temporaryMachines.Any(machine => machine.Id == machineId))
+        if (IsTemporaryMachine(machineId))
         {
             return;
         }
@@ -673,12 +673,20 @@ public sealed class MainForm : Form
             return;
         }
 
-        SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
-        _data.AutoReconnectMachineIds = _sessions
-            .Where(entry => entry.Value.IsConnected && !_temporaryMachines.Any(machine => machine.Id == entry.Key))
-            .Select(entry => entry.Key)
+        var currentMachineIds = _data.Machines.Select(machine => machine.Id).ToHashSet();
+        var openSessionIds = _sessions.Keys
+            .Where(machineId => currentMachineIds.Contains(machineId) && !IsTemporaryMachine(machineId));
+
+        _data.AutoReconnectMachineIds = _data.AutoReconnectMachineIds
+            .Concat(openSessionIds)
+            .Where(machineId => currentMachineIds.Contains(machineId))
             .Distinct()
             .ToList();
+    }
+
+    private bool IsTemporaryMachine(Guid machineId)
+    {
+        return _temporaryMachines.Any(machine => machine.Id == machineId);
     }
 
     private void RestoreRememberedSessions()
@@ -977,7 +985,10 @@ public sealed class MainForm : Form
 
         session.Dispose();
         _sessions.Remove(machineId);
-        ForgetSession(machineId);
+        if (!wasConnected)
+        {
+            ForgetSession(machineId);
+        }
         _temporaryMachines.RemoveAll(machine => machine.Id == machineId);
 
         if (notifyFailure && showError && hadStartup && !wasConnected)
