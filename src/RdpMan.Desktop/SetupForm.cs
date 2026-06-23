@@ -141,9 +141,9 @@ public sealed class SetupForm : Form
         _adPreview.ItemHeight = 24;
 
         var actions = ActionRow(
-            ("Suchen", SearchAd, true),
-            ("CSV laden", LoadCsv, false),
-            ("Uebernehmen", ImportPreview, false));
+            ("AD suchen", SearchAd, true),
+            ("Vorschau importieren", ImportPreview, false),
+            ("CSV importieren", LoadCsv, false));
         page.Controls.Add(ListWrap(_adPreview));
         page.Controls.Add(actions);
         page.Controls.Add(Field("LDAP-Filter", _ldapFilter));
@@ -400,6 +400,7 @@ public sealed class SetupForm : Form
             {
                 AddPreviewName(name);
             }
+            ImportPreviewNames("CSV Import");
         }
         catch (Exception ex)
         {
@@ -408,6 +409,11 @@ public sealed class SetupForm : Form
     }
 
     private void ImportPreview()
+    {
+        ImportPreviewNames("AD Import");
+    }
+
+    private void ImportPreviewNames(string title)
     {
         var existingDns = _data.Machines.Select(machine => machine.DnsName.ToLowerInvariant()).ToHashSet();
         var imported = 0;
@@ -431,7 +437,7 @@ public sealed class SetupForm : Form
         {
             DataChanged = true;
         }
-        MessageBox.Show(this, $"{imported} Rechner uebernommen.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(this, $"{imported} Rechner uebernommen.", title, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void AddPreviewName(string? value)
