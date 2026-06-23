@@ -356,20 +356,21 @@ public sealed class MainForm : Form
     {
         var credential = CredentialFor(machine)?.DisplayName ?? "Aktueller Windows-Benutzer";
         var group = GroupFor(machine);
+        var redirects = EffectiveRedirectSettings(machine);
         var flags = new List<string>();
-        if (machine.RedirectClipboard)
+        if (redirects.Clipboard)
         {
             flags.Add("Zwischenablage");
         }
-        if (machine.RedirectPrinters)
+        if (redirects.Printers)
         {
             flags.Add("Drucker");
         }
-        if (machine.RedirectSmartCards)
+        if (redirects.SmartCards)
         {
             flags.Add("Smartcards");
         }
-        if (machine.RedirectWebAuthn)
+        if (redirects.WebAuthn)
         {
             flags.Add("WebAuthn");
         }
@@ -385,6 +386,7 @@ public sealed class MainForm : Form
         }
         lines.Add($"Zugang: {credential}");
         lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
+        lines.Add($"Freigaben-Modus: {(machine.UseGlobalRedirectSettings ? "global" : "Rechner")}");
         if (!string.IsNullOrWhiteSpace(machine.Notes))
         {
             lines.Add("");
@@ -845,6 +847,7 @@ public sealed class MainForm : Form
         {
             Name = dialog.HostName,
             DnsName = dialog.HostName,
+            UseGlobalRedirectSettings = true,
             IsTemporary = true,
         };
         _temporaryMachines.Add(machine);
@@ -915,7 +918,45 @@ public sealed class MainForm : Form
 
     private IRemoteSessionHost CreateSessionHost(MachineEntry machine, CredentialProfile? credential)
     {
-        return new RdpSessionHost(machine, credential);
+        return new RdpSessionHost(MachineWithEffectiveRedirects(machine), credential);
+    }
+
+    private MachineEntry MachineWithEffectiveRedirects(MachineEntry machine)
+    {
+        var redirects = EffectiveRedirectSettings(machine);
+        return new MachineEntry
+        {
+            Id = machine.Id,
+            Name = machine.Name,
+            DnsName = machine.DnsName,
+            GroupId = machine.GroupId,
+            GroupName = machine.GroupName,
+            ColorKey = machine.ColorKey,
+            Notes = machine.Notes,
+            CredentialProfileId = machine.CredentialProfileId,
+            IsFavorite = machine.IsFavorite,
+            UseGlobalRedirectSettings = machine.UseGlobalRedirectSettings,
+            RedirectClipboard = redirects.Clipboard,
+            RedirectPrinters = redirects.Printers,
+            RedirectSmartCards = redirects.SmartCards,
+            RedirectWebAuthn = redirects.WebAuthn,
+            IsTemporary = machine.IsTemporary,
+        };
+    }
+
+    private RedirectSettings EffectiveRedirectSettings(MachineEntry machine)
+    {
+        return machine.UseGlobalRedirectSettings
+            ? new RedirectSettings(
+                _data.GlobalRedirectClipboard,
+                _data.GlobalRedirectPrinters,
+                _data.GlobalRedirectSmartCards,
+                _data.GlobalRedirectWebAuthn)
+            : new RedirectSettings(
+                machine.RedirectClipboard,
+                machine.RedirectPrinters,
+                machine.RedirectSmartCards,
+                machine.RedirectWebAuthn);
     }
 
     private void RemoveTemporaryMachine(Guid machineId)
@@ -1144,6 +1185,7 @@ public sealed class MainForm : Form
         machine.Notes = dialog.Machine.Notes;
         machine.CredentialProfileId = dialog.Machine.CredentialProfileId;
         machine.IsFavorite = dialog.Machine.IsFavorite;
+        machine.UseGlobalRedirectSettings = dialog.Machine.UseGlobalRedirectSettings;
         machine.RedirectClipboard = dialog.Machine.RedirectClipboard;
         machine.RedirectPrinters = dialog.Machine.RedirectPrinters;
         machine.RedirectSmartCards = dialog.Machine.RedirectSmartCards;
@@ -1234,6 +1276,7 @@ public sealed class MainForm : Form
             {
                 Name = dnsName,
                 DnsName = dnsName,
+                UseGlobalRedirectSettings = true,
             });
             existingDns.Add(dnsName.ToLowerInvariant());
             imported++;
@@ -1243,4 +1286,6 @@ public sealed class MainForm : Form
         RefreshMachineList();
         _statusLabel.Text = $"{imported} Maschinen importiert";
     }
+
+    private sealed record RedirectSettings(bool Clipboard, bool Printers, bool SmartCards, bool WebAuthn);
 }

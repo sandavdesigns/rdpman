@@ -16,6 +16,10 @@ public sealed class SetupForm : Form
     private readonly ComboBox _importGroup = new();
     private readonly ComboBox _importCredential = new();
     private readonly ListBox _adPreview = new();
+    private readonly CheckBox _globalRedirectClipboard = new();
+    private readonly CheckBox _globalRedirectPrinters = new();
+    private readonly CheckBox _globalRedirectSmartCards = new();
+    private readonly CheckBox _globalRedirectWebAuthn = new();
     private readonly List<string> _previewNames = [];
 
     public bool DataChanged { get; private set; }
@@ -66,6 +70,7 @@ public sealed class SetupForm : Form
         tabs.TabPages.Add(CredentialsTab());
         tabs.TabPages.Add(GroupsTab());
         tabs.TabPages.Add(AdImportTab());
+        tabs.TabPages.Add(RdpTab());
         tabs.TabPages.Add(BackupTab());
 
         var buttons = AppTheme.Footer();
@@ -161,6 +166,52 @@ public sealed class SetupForm : Form
         page.Controls.Add(Field("Import-Gruppe", _importGroup));
         page.Controls.Add(Field("LDAP-Filter", _ldapFilter));
         page.Controls.Add(Field("OU / LDAP", _ldapPath));
+        return page;
+    }
+
+    private TabPage RdpTab()
+    {
+        var page = Page("RDP");
+        var info = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 48,
+            Text = "Diese Freigaben gelten fuer neue Rechner und fuer Eintraege, die globale Freigaben verwenden.",
+            ForeColor = AppTheme.MutedText,
+            Font = AppTheme.UiFont,
+        };
+
+        StyleCheckBox(_globalRedirectClipboard, "Zwischenablage erlauben");
+        StyleCheckBox(_globalRedirectPrinters, "Drucker umleiten");
+        StyleCheckBox(_globalRedirectSmartCards, "Smartcards umleiten");
+        StyleCheckBox(_globalRedirectWebAuthn, "WebAuthn / Windows Hello erlauben");
+
+        _globalRedirectClipboard.Checked = _data.GlobalRedirectClipboard;
+        _globalRedirectPrinters.Checked = _data.GlobalRedirectPrinters;
+        _globalRedirectSmartCards.Checked = _data.GlobalRedirectSmartCards;
+        _globalRedirectWebAuthn.Checked = _data.GlobalRedirectWebAuthn;
+
+        _globalRedirectClipboard.CheckedChanged += (_, _) => UpdateGlobalRedirects();
+        _globalRedirectPrinters.CheckedChanged += (_, _) => UpdateGlobalRedirects();
+        _globalRedirectSmartCards.CheckedChanged += (_, _) => UpdateGlobalRedirects();
+        _globalRedirectWebAuthn.CheckedChanged += (_, _) => UpdateGlobalRedirects();
+
+        var options = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 116,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            BackColor = AppTheme.Surface,
+            Padding = new Padding(0, 8, 0, 0),
+        };
+        options.Controls.Add(_globalRedirectClipboard);
+        options.Controls.Add(_globalRedirectPrinters);
+        options.Controls.Add(_globalRedirectSmartCards);
+        options.Controls.Add(_globalRedirectWebAuthn);
+
+        page.Controls.Add(options);
+        page.Controls.Add(info);
         return page;
     }
 
@@ -284,6 +335,15 @@ public sealed class SetupForm : Form
             _data.GlobalCredentialProfileId = choice.Id;
             DataChanged = true;
         }
+    }
+
+    private void UpdateGlobalRedirects()
+    {
+        _data.GlobalRedirectClipboard = _globalRedirectClipboard.Checked;
+        _data.GlobalRedirectPrinters = _globalRedirectPrinters.Checked;
+        _data.GlobalRedirectSmartCards = _globalRedirectSmartCards.Checked;
+        _data.GlobalRedirectWebAuthn = _globalRedirectWebAuthn.Checked;
+        DataChanged = true;
     }
 
     private CredentialProfile? SelectedCredential() => _credentials.SelectedItem as CredentialProfile;
@@ -504,6 +564,7 @@ public sealed class SetupForm : Form
                 GroupId = groupId,
                 GroupName = groupName,
                 CredentialProfileId = credentialId,
+                UseGlobalRedirectSettings = true,
             });
             existingDns.Add(name.ToLowerInvariant());
             imported++;
@@ -622,6 +683,15 @@ public sealed class SetupForm : Form
         }
 
         return row;
+    }
+
+    private static void StyleCheckBox(CheckBox checkBox, string text)
+    {
+        checkBox.Text = text;
+        checkBox.AutoSize = true;
+        checkBox.Font = AppTheme.UiFont;
+        checkBox.ForeColor = AppTheme.Text;
+        checkBox.Margin = new Padding(0, 4, 22, 8);
     }
 
     private static Panel Field(string label, Control input)

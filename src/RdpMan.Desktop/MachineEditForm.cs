@@ -9,6 +9,7 @@ public sealed class MachineEditForm : Form
     private readonly ComboBox _credential = new();
     private readonly ComboBox _color = new();
     private readonly CheckBox _favorite = new();
+    private readonly CheckBox _useGlobalRedirectSettings = new();
     private readonly CheckBox _redirectClipboard = new();
     private readonly CheckBox _redirectPrinters = new();
     private readonly CheckBox _redirectSmartCards = new();
@@ -21,7 +22,7 @@ public sealed class MachineEditForm : Form
     {
         _data = data;
         Machine = machine is null
-            ? new MachineEntry()
+            ? new MachineEntry { UseGlobalRedirectSettings = true }
             : new MachineEntry
             {
                 Id = machine.Id,
@@ -33,6 +34,7 @@ public sealed class MachineEditForm : Form
                 Notes = machine.Notes,
                 CredentialProfileId = machine.CredentialProfileId,
                 IsFavorite = machine.IsFavorite,
+                UseGlobalRedirectSettings = machine.UseGlobalRedirectSettings,
                 RedirectClipboard = machine.RedirectClipboard,
                 RedirectPrinters = machine.RedirectPrinters,
                 RedirectSmartCards = machine.RedirectSmartCards,
@@ -41,7 +43,7 @@ public sealed class MachineEditForm : Form
 
         Text = machine is null ? "Maschine hinzufuegen" : "Maschine bearbeiten";
         Width = 600;
-        Height = 720;
+        Height = 760;
         MinimumSize = new Size(560, 640);
         AppTheme.ApplyWindow(this);
 
@@ -81,8 +83,8 @@ public sealed class MachineEditForm : Form
         {
             Dock = DockStyle.Top,
             ColumnCount = 1,
-            RowCount = 9,
-            Height = 486,
+            RowCount = 10,
+            Height = 548,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -97,10 +99,12 @@ public sealed class MachineEditForm : Form
         ColorPalette.ConfigureColorCombo(_color);
 
         StyleCheckBox(_favorite, "Favorit");
+        StyleCheckBox(_useGlobalRedirectSettings, "Globale Freigaben verwenden");
         StyleCheckBox(_redirectClipboard, "Zwischenablage erlauben");
         StyleCheckBox(_redirectPrinters, "Drucker umleiten");
         StyleCheckBox(_redirectSmartCards, "Smartcards umleiten");
         StyleCheckBox(_redirectWebAuthn, "WebAuthn / Windows Hello erlauben");
+        _useGlobalRedirectSettings.CheckedChanged += (_, _) => UpdateRedirectControls();
 
         var security = new FlowLayoutPanel
         {
@@ -121,8 +125,9 @@ public sealed class MachineEditForm : Form
         layout.Controls.Add(Field("Farbe", _color), 0, 3);
         layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 4);
         layout.Controls.Add(CheckField(_favorite), 0, 5);
-        layout.Controls.Add(Field("RDP-Freigaben", security), 0, 6);
-        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 7);
+        layout.Controls.Add(CheckField(_useGlobalRedirectSettings), 0, 6);
+        layout.Controls.Add(Field("RDP-Freigaben", security), 0, 7);
+        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 8);
 
         scroll.Controls.Add(layout);
 
@@ -150,10 +155,19 @@ public sealed class MachineEditForm : Form
         _dnsName.Text = Machine?.DnsName ?? "";
         _notes.Text = Machine?.Notes ?? "";
         _favorite.Checked = Machine?.IsFavorite == true;
-        _redirectClipboard.Checked = Machine?.RedirectClipboard == true;
-        _redirectPrinters.Checked = Machine?.RedirectPrinters == true;
-        _redirectSmartCards.Checked = Machine?.RedirectSmartCards == true;
-        _redirectWebAuthn.Checked = Machine?.RedirectWebAuthn == true;
+        _useGlobalRedirectSettings.Checked = Machine?.UseGlobalRedirectSettings == true;
+        if (_useGlobalRedirectSettings.Checked)
+        {
+            ApplyGlobalRedirectValues();
+        }
+        else
+        {
+            _redirectClipboard.Checked = Machine?.RedirectClipboard == true;
+            _redirectPrinters.Checked = Machine?.RedirectPrinters == true;
+            _redirectSmartCards.Checked = Machine?.RedirectSmartCards == true;
+            _redirectWebAuthn.Checked = Machine?.RedirectWebAuthn == true;
+        }
+        UpdateRedirectControls();
 
         _group.Items.Add(new GroupChoice(null, "Keine Gruppe"));
         foreach (var group in _data.Groups.OrderBy(item => item.DisplayName))
@@ -237,10 +251,32 @@ public sealed class MachineEditForm : Form
         Machine.Notes = _notes.Text.Trim();
         Machine.CredentialProfileId = (_credential.SelectedItem as CredentialChoice)?.Id;
         Machine.IsFavorite = _favorite.Checked;
+        Machine.UseGlobalRedirectSettings = _useGlobalRedirectSettings.Checked;
         Machine.RedirectClipboard = _redirectClipboard.Checked;
         Machine.RedirectPrinters = _redirectPrinters.Checked;
         Machine.RedirectSmartCards = _redirectSmartCards.Checked;
         Machine.RedirectWebAuthn = _redirectWebAuthn.Checked;
+    }
+
+    private void UpdateRedirectControls()
+    {
+        if (_useGlobalRedirectSettings.Checked)
+        {
+            ApplyGlobalRedirectValues();
+        }
+
+        _redirectClipboard.Enabled = !_useGlobalRedirectSettings.Checked;
+        _redirectPrinters.Enabled = !_useGlobalRedirectSettings.Checked;
+        _redirectSmartCards.Enabled = !_useGlobalRedirectSettings.Checked;
+        _redirectWebAuthn.Enabled = !_useGlobalRedirectSettings.Checked;
+    }
+
+    private void ApplyGlobalRedirectValues()
+    {
+        _redirectClipboard.Checked = _data.GlobalRedirectClipboard;
+        _redirectPrinters.Checked = _data.GlobalRedirectPrinters;
+        _redirectSmartCards.Checked = _data.GlobalRedirectSmartCards;
+        _redirectWebAuthn.Checked = _data.GlobalRedirectWebAuthn;
     }
 
     private static void StyleCheckBox(CheckBox checkBox, string text)
