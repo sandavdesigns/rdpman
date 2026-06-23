@@ -1036,6 +1036,8 @@ public sealed class MainForm : Form
     {
         _rdpPanel.Controls.Clear();
         _rdpPanel.Controls.Add(session.Control);
+        session.Control.Visible = true;
+        session.Control.BringToFront();
         session.ResizeToHost();
         _statusLabel.Text = $"{session.Machine.DisplayName} verbunden";
     }
@@ -1121,11 +1123,20 @@ public sealed class MainForm : Form
                 _sessionWasConnected.Remove(machine.Id);
             }
 
-            ShowSessionControl(session);
             session.Connect();
             RememberSession(machine.Id);
             SelectMachine(machine.Id);
             RefreshMachineList();
+            SelectMachine(machine.Id);
+            ShowSessionControl(session);
+            BeginInvoke(new Action(() =>
+            {
+                if (_sessions.TryGetValue(machine.Id, out var currentSession) && ReferenceEquals(currentSession, session))
+                {
+                    SelectMachine(machine.Id);
+                    ShowSessionControl(currentSession);
+                }
+            }));
             _statusLabel.Text = $"Verbinde mit {machine.DisplayName}";
             return true;
         }
