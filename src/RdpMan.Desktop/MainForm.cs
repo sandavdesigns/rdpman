@@ -33,6 +33,8 @@ public sealed class MainForm : Form
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
     private readonly ToolStripStatusLabel _versionLabel = new();
+    private int _logoClickCount;
+    private DateTime _lastLogoClickAt;
 
     public MainForm()
     {
@@ -54,6 +56,7 @@ public sealed class MainForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        OpenSetupWizardIfNeeded();
         RestoreRememberedSessions();
     }
 
@@ -120,6 +123,7 @@ public sealed class MainForm : Form
 
         var header = new Panel { Dock = DockStyle.Top, Height = 94, BackColor = AppTheme.Sidebar };
         header.Paint += (_, e) => AppTheme.DrawLogo(e.Graphics, new Rectangle(0, 6, 56, 56));
+        header.MouseClick += HeaderMouseClick;
 
         var title = new Label
         {
@@ -522,6 +526,11 @@ public sealed class MainForm : Form
 
     private void NormalizeData()
     {
+        if (!_data.SetupWizardCompleted && (_data.Machines.Count > 0 || _data.Credentials.Count > 0))
+        {
+            _data.SetupWizardCompleted = true;
+        }
+
         foreach (var machine in _data.Machines)
         {
             if (machine.UseGlobalRedirectSettings is null || HasLegacyDefaultRedirectSettings(machine))
@@ -576,6 +585,57 @@ public sealed class MainForm : Form
     private void SaveData()
     {
         _store.Save(_data);
+    }
+
+    private void HeaderMouseClick(object? sender, MouseEventArgs e)
+    {
+        var logoBounds = new Rectangle(0, 6, 56, 56);
+        if (!logoBounds.Contains(e.Location))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        _logoClickCount = now - _lastLogoClickAt > TimeSpan.FromSeconds(3)
+            ? 1
+            : _logoClickCount + 1;
+        _lastLogoClickAt = now;
+
+        if (_logoClickCount < 5)
+        {
+            return;
+        }
+
+        _logoClickCount = 0;
+        OpenSetupWizard(force: true);
+    }
+
+    private void OpenSetupWizardIfNeeded()
+    {
+        if (_data.SetupWizardCompleted)
+        {
+            return;
+        }
+
+        OpenSetupWizard(force: false);
+    }
+
+    private void OpenSetupWizard(bool force)
+    {
+        if (!force && _data.SetupWizardCompleted)
+        {
+            return;
+        }
+
+        using var dialog = new SetupWizardForm(_data);
+        dialog.ShowDialog(this);
+        if (dialog.DataChanged)
+        {
+            SaveData();
+            NormalizeData();
+            RefreshMachineList();
+            ShowSelectedSession();
+        }
     }
 
     private void RememberSession(Guid machineId)
