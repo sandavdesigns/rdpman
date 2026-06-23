@@ -13,6 +13,8 @@ public sealed class SetupForm : Form
     private readonly ComboBox _globalCredential = new();
     private readonly TextBox _ldapPath = AppTheme.TextBox();
     private readonly TextBox _ldapFilter = AppTheme.TextBox();
+    private readonly ComboBox _importGroup = new();
+    private readonly ComboBox _importCredential = new();
     private readonly ListBox _adPreview = new();
     private readonly List<string> _previewNames = [];
 
@@ -33,6 +35,7 @@ public sealed class SetupForm : Form
         BuildLayout();
         RefreshCredentials();
         RefreshGroups();
+        RefreshImportDefaults();
     }
 
     private void BuildLayout()
@@ -140,12 +143,22 @@ public sealed class SetupForm : Form
         _adPreview.Font = AppTheme.UiFont;
         _adPreview.ItemHeight = 24;
 
+        _importGroup.DropDownStyle = ComboBoxStyle.DropDownList;
+        _importGroup.FlatStyle = FlatStyle.Flat;
+        AppTheme.StyleInput(_importGroup);
+
+        _importCredential.DropDownStyle = ComboBoxStyle.DropDownList;
+        _importCredential.FlatStyle = FlatStyle.Flat;
+        AppTheme.StyleInput(_importCredential);
+
         var actions = ActionRow(
             ("AD suchen", SearchAd, true),
             ("Vorschau importieren", ImportPreview, false),
             ("CSV importieren", LoadCsv, false));
         page.Controls.Add(ListWrap(_adPreview));
         page.Controls.Add(actions);
+        page.Controls.Add(Field("Import-Zugang", _importCredential));
+        page.Controls.Add(Field("Import-Gruppe", _importGroup));
         page.Controls.Add(Field("LDAP-Filter", _ldapFilter));
         page.Controls.Add(Field("OU / LDAP", _ldapPath));
         return page;
@@ -175,6 +188,7 @@ public sealed class SetupForm : Form
         _credentials.DataSource = null;
         _credentials.DataSource = _data.Credentials.OrderBy(credential => credential.DisplayName).ToList();
         RefreshGlobalCredential();
+        RefreshImportCredentials();
         _groups.Invalidate();
     }
 
@@ -207,6 +221,60 @@ public sealed class SetupForm : Form
     {
         _groups.DataSource = null;
         _groups.DataSource = _data.Groups.OrderBy(group => group.DisplayName).ToList();
+        RefreshImportGroups();
+    }
+
+    private void RefreshImportDefaults()
+    {
+        RefreshImportGroups();
+        RefreshImportCredentials();
+    }
+
+    private void RefreshImportGroups()
+    {
+        var selectedId = (_importGroup.SelectedItem as GroupChoice)?.Id;
+        _importGroup.Items.Clear();
+        _importGroup.Items.Add(new GroupChoice(null, "Keine Gruppe"));
+        foreach (var group in _data.Groups.OrderBy(group => group.DisplayName))
+        {
+            _importGroup.Items.Add(new GroupChoice(group.Id, group.DisplayName));
+        }
+        SelectComboItem(_importGroup, selectedId);
+    }
+
+    private void RefreshImportCredentials()
+    {
+        var selectedId = (_importCredential.SelectedItem as CredentialChoice)?.Id;
+        _importCredential.Items.Clear();
+        _importCredential.Items.Add(new CredentialChoice(null, "Gruppe/global verwenden"));
+        foreach (var credential in _data.Credentials.OrderBy(credential => credential.DisplayName))
+        {
+            _importCredential.Items.Add(new CredentialChoice(credential.Id, credential.DisplayName));
+        }
+        SelectComboItem(_importCredential, selectedId);
+    }
+
+    private static void SelectComboItem(ComboBox comboBox, Guid? selectedId)
+    {
+        for (var index = 0; index < comboBox.Items.Count; index++)
+        {
+            var id = comboBox.Items[index] switch
+            {
+                CredentialChoice credential => credential.Id,
+                GroupChoice group => group.Id,
+                _ => null,
+            };
+            if (id == selectedId)
+            {
+                comboBox.SelectedIndex = index;
+                return;
+            }
+        }
+
+        if (comboBox.Items.Count > 0)
+        {
+            comboBox.SelectedIndex = 0;
+        }
     }
 
     private void GlobalCredentialChanged(object? sender, EventArgs e)
@@ -416,6 +484,11 @@ public sealed class SetupForm : Form
     private void ImportPreviewNames(string title)
     {
         var existingDns = _data.Machines.Select(machine => machine.DnsName.ToLowerInvariant()).ToHashSet();
+        var groupId = (_importGroup.SelectedItem as GroupChoice)?.Id;
+        var groupName = groupId is null
+            ? ""
+            : _data.Groups.FirstOrDefault(group => group.Id == groupId)?.Name ?? "";
+        var credentialId = (_importCredential.SelectedItem as CredentialChoice)?.Id;
         var imported = 0;
         foreach (var name in _previewNames)
         {
@@ -428,6 +501,9 @@ public sealed class SetupForm : Form
             {
                 Name = name,
                 DnsName = name,
+                GroupId = groupId,
+                GroupName = groupName,
+                CredentialProfileId = credentialId,
             });
             existingDns.Add(name.ToLowerInvariant());
             imported++;
@@ -565,6 +641,11 @@ public sealed class SetupForm : Form
     }
 
     private sealed record CredentialChoice(Guid? Id, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record GroupChoice(Guid? Id, string Label)
     {
         public override string ToString() => Label;
     }
