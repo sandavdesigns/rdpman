@@ -16,7 +16,7 @@ public sealed class DataStore
     {
         DataDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "RDP Man");
+            Brand.LegacyDataDirectoryName);
         DataFile = Path.Combine(DataDirectory, "rdpman.json");
     }
 

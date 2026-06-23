@@ -192,7 +192,7 @@ public sealed class CredentialManagerForm : Form
             return;
         }
 
-        if (MessageBox.Show(this, "Zugang wirklich löschen?", "RDP Man", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (MessageBox.Show(this, "Zugang wirklich löschen?", Brand.AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
         {
             return;
         }

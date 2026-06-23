@@ -235,7 +235,7 @@ public sealed class MachineEditForm : Form
     {
         if (string.IsNullOrWhiteSpace(_dnsName.Text))
         {
-            MessageBox.Show(this, "DNS-Name ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "DNS-Name ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             return;
         }

@@ -123,7 +123,7 @@ public sealed class GroupEditForm : Form
     {
         if (string.IsNullOrWhiteSpace(_name.Text))
         {
-            MessageBox.Show(this, "Name ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Name ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             return;
         }

@@ -1,6 +1,6 @@
-# RDP Man
+# Lord of the Pings
 
-RDP Man is a native Windows desktop application for managing and switching between RDP sessions. It is intentionally not a browser app: the right side of the window hosts real Microsoft RDP ActiveX sessions so the application can switch between open machines like a classic RDP manager.
+Lord of the Pings is a native Windows desktop application for managing and switching between RDP sessions. It is intentionally not a browser app: the right side of the window hosts real Microsoft RDP ActiveX sessions so the application can switch between open machines like a classic RDP manager.
 
 ## Features
 
@@ -19,7 +19,7 @@ RDP Man is a native Windows desktop application for managing and switching betwe
 - CSV import for exported AD computer lists
 - Backup and restore for machines, credentials, and reconnect state
 - Automatic restore of sessions that were open before closing the app
-- Local JSON data store under `%APPDATA%\RDP Man`
+- Local JSON data store under `%APPDATA%\RDP Man` for compatibility with earlier builds
 
 ## Build Requirements
 
@@ -34,8 +34,8 @@ GitHub Actions builds a Windows ZIP package on every push to `main`.
 1. Open the GitHub repository.
 2. Go to **Actions**.
 3. Open the latest **Build Windows App** run.
-4. Download the `RdpMan-win-x64` artifact.
-5. Extract the ZIP and start `RdpMan.exe`.
+4. Download the `LordOfThePings-win-x64` artifact.
+5. Extract the ZIP and start `LordOfThePings.exe`.
 
 Tagged versions like `v0.1.1` also create a GitHub Release with the ZIP attached.
 

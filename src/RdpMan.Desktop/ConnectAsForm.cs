@@ -144,7 +144,7 @@ public sealed class ConnectAsForm : Form
     {
         if (_showHost && string.IsNullOrWhiteSpace(_host.Text))
         {
-            MessageBox.Show(this, "PC-Name oder IP ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "PC-Name oder IP ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             return;
         }
@@ -154,7 +154,7 @@ public sealed class ConnectAsForm : Form
         {
             if (string.IsNullOrWhiteSpace(_username.Text))
             {
-                MessageBox.Show(this, "Benutzername ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Benutzername ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
                 return;
             }

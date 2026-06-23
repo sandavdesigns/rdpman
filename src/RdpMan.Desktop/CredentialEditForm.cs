@@ -114,14 +114,14 @@ public sealed class CredentialEditForm : Form
     {
         if (string.IsNullOrWhiteSpace(_username.Text))
         {
-            MessageBox.Show(this, "Benutzername ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Benutzername ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             return;
         }
 
         if (!_editingExisting && string.IsNullOrWhiteSpace(_password.Text))
         {
-            MessageBox.Show(this, "Passwort ist erforderlich.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Passwort ist erforderlich.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             return;
         }

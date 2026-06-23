@@ -113,7 +113,7 @@ public sealed class AdImportForm : Form
 
         if (string.IsNullOrWhiteSpace(_ldapPath.Text))
         {
-            MessageBox.Show(this, "Bitte LDAP-Pfad der OU angeben.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Bitte LDAP-Pfad der OU angeben.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -188,7 +188,7 @@ public sealed class AdImportForm : Form
 
             if (ImportedDnsNames.Count == 0)
             {
-                MessageBox.Show(this, "In der CSV wurden keine Computer gefunden.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "In der CSV wurden keine Computer gefunden.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         catch (Exception ex)

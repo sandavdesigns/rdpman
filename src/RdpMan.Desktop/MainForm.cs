@@ -36,7 +36,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "RDP Man";
+        Text = Brand.AppName;
         MinimumSize = new Size(1120, 720);
         Width = 1340;
         Height = 840;
@@ -123,15 +123,15 @@ public sealed class MainForm : Form
 
         var title = new Label
         {
-            Text = "RDP Man",
+            Text = Brand.AppName,
             ForeColor = Color.White,
-            Font = new Font("Segoe UI Semibold", 17f, FontStyle.Bold),
+            Font = new Font("Segoe UI Semibold", 15f, FontStyle.Bold),
             Location = new Point(70, 10),
             AutoSize = true,
         };
         var subtitle = new Label
         {
-            Text = "Remote Desktop Manager",
+            Text = Brand.AppSubtitle,
             ForeColor = Color.FromArgb(203, 213, 225),
             Font = AppTheme.SmallFont,
             Location = new Point(72, 42),
@@ -932,7 +932,7 @@ public sealed class MainForm : Form
         MessageBox.Show(
             this,
             $"Die RDP-Verbindung zu \"{machine.DisplayName}\" wurde nicht hergestellt.\n\nDer Zielrechner ist eventuell nicht erreichbar, RDP ist deaktiviert, die Anmeldung wurde abgebrochen oder die Sicherheitsabfrage wurde nicht bestätigt.",
-            "RDP Man",
+            Brand.AppName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Warning);
     }
@@ -1082,7 +1082,7 @@ public sealed class MainForm : Form
                 MessageBox.Show(
                     this,
                     $"Die RDP-Verbindung zu \"{machine.DisplayName}\" konnte nicht gestartet werden.\n\n{ex.Message}",
-                    "RDP Man",
+                    Brand.AppName,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
@@ -1174,7 +1174,7 @@ public sealed class MainForm : Form
             MessageBox.Show(
                 this,
                 $"Reconnect zu \"{session.Machine.DisplayName}\" ist fehlgeschlagen.\n\n{ex.Message}",
-                "RDP Man",
+                Brand.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -1252,9 +1252,9 @@ public sealed class MainForm : Form
     {
         using var dialog = new SaveFileDialog
         {
-            Title = "RDP Man Backup erstellen",
-            FileName = $"rdpman-backup-{DateTime.Now:yyyyMMdd-HHmm}.json",
-            Filter = "RDP Man Backup (*.json)|*.json|Alle Dateien (*.*)|*.*",
+            Title = $"{Brand.AppName} Backup erstellen",
+            FileName = $"lordofthepings-backup-{DateTime.Now:yyyyMMdd-HHmm}.json",
+            Filter = Brand.BackupFilter,
         };
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
@@ -1267,7 +1267,7 @@ public sealed class MainForm : Form
             SaveData();
             _store.ExportBackup(_data, dialog.FileName);
             _statusLabel.Text = "Backup erstellt";
-            MessageBox.Show(this, "Backup wurde erstellt.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Backup wurde erstellt.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {
@@ -1279,8 +1279,8 @@ public sealed class MainForm : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "RDP Man Backup wiederherstellen",
-            Filter = "RDP Man Backup (*.json)|*.json|Alle Dateien (*.*)|*.*",
+            Title = $"{Brand.AppName} Backup wiederherstellen",
+            Filter = Brand.BackupFilter,
         };
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
@@ -1341,7 +1341,7 @@ public sealed class MainForm : Form
         }
         if (machine.IsTemporary)
         {
-            MessageBox.Show(this, "Ad-hoc-Verbindungen sind nur temporÃ¤r und kÃ¶nnen nicht bearbeitet werden.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Ad-hoc-Verbindungen sind nur temporÃ¤r und kÃ¶nnen nicht bearbeitet werden.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 

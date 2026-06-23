@@ -141,15 +141,36 @@ internal static class AppTheme
         using var background = new SolidBrush(SidebarAlt);
         using var accent = new SolidBrush(Accent);
         using var green = new SolidBrush(Success);
+        using var gold = new SolidBrush(Color.FromArgb(250, 204, 21));
         using var text = new SolidBrush(Color.White);
-        using var titleFont = new Font("Segoe UI Semibold", Math.Max(9, bounds.Height * 0.22f), FontStyle.Bold);
+        using var titleFont = new Font("Segoe UI Semibold", Math.Max(8, bounds.Height * 0.18f), FontStyle.Bold);
+        using var pingPen = new Pen(Color.FromArgb(147, 197, 253), Math.Max(2, bounds.Width / 26f));
 
         graphics.FillRoundedRectangle(background, bounds, Math.Max(8, bounds.Width / 8));
+
         var screen = Rectangle.Inflate(bounds, -bounds.Width / 6, -bounds.Height / 4);
         screen.Height = bounds.Height / 3;
         graphics.FillRoundedRectangle(accent, screen, Math.Max(4, bounds.Width / 18));
-        graphics.FillRectangle(green, bounds.Left + bounds.Width / 3, screen.Bottom + bounds.Height / 11, bounds.Width / 3, Math.Max(3, bounds.Height / 16));
-        graphics.DrawString("RDP", titleFont, text, bounds.Left + bounds.Width * 0.22f, bounds.Top + bounds.Height * 0.58f);
+
+        var crownY = bounds.Top + bounds.Height * 0.11f;
+        var crown = new[]
+        {
+            new PointF(bounds.Left + bounds.Width * 0.34f, crownY + bounds.Height * 0.10f),
+            new PointF(bounds.Left + bounds.Width * 0.43f, crownY),
+            new PointF(bounds.Left + bounds.Width * 0.50f, crownY + bounds.Height * 0.10f),
+            new PointF(bounds.Left + bounds.Width * 0.58f, crownY),
+            new PointF(bounds.Left + bounds.Width * 0.67f, crownY + bounds.Height * 0.10f),
+            new PointF(bounds.Left + bounds.Width * 0.67f, crownY + bounds.Height * 0.18f),
+            new PointF(bounds.Left + bounds.Width * 0.34f, crownY + bounds.Height * 0.18f),
+        };
+        graphics.FillPolygon(gold, crown);
+
+        var center = new PointF(bounds.Left + bounds.Width * 0.50f, bounds.Top + bounds.Height * 0.48f);
+        var radius = bounds.Width * 0.19f;
+        graphics.DrawArc(pingPen, center.X - radius, center.Y - radius, radius * 2, radius * 2, 215, 110);
+        graphics.FillEllipse(green, center.X - bounds.Width * 0.055f, center.Y - bounds.Width * 0.055f, bounds.Width * 0.11f, bounds.Width * 0.11f);
+
+        graphics.DrawString("PING", titleFont, text, bounds.Left + bounds.Width * 0.17f, bounds.Top + bounds.Height * 0.66f);
     }
 
     private static Icon LoadAppIcon()

@@ -424,7 +424,7 @@ public sealed class SetupForm : Form
             return;
         }
 
-        if (MessageBox.Show(this, "Zugang wirklich entfernen?", "RDP Man", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (MessageBox.Show(this, "Zugang wirklich entfernen?", Brand.AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
         {
             return;
         }
@@ -491,7 +491,7 @@ public sealed class SetupForm : Form
             return;
         }
 
-        if (MessageBox.Show(this, $"Gruppe \"{group.DisplayName}\" entfernen?", "RDP Man", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        if (MessageBox.Show(this, $"Gruppe \"{group.DisplayName}\" entfernen?", Brand.AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
         {
             return;
         }
@@ -510,7 +510,7 @@ public sealed class SetupForm : Form
     {
         if (string.IsNullOrWhiteSpace(_ldapPath.Text))
         {
-            MessageBox.Show(this, "Bitte LDAP-Pfad der OU angeben.", "RDP Man", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Bitte LDAP-Pfad der OU angeben.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 

@@ -35,7 +35,7 @@ public static class RdpConnectionProfile
 
     public static string WriteRdpFile(MachineEntry machine, CredentialProfile? credential, Size desktopSize)
     {
-        var directory = Path.Combine(Path.GetTempPath(), "RDP Man");
+        var directory = Path.Combine(Path.GetTempPath(), Brand.ExecutableName);
         Directory.CreateDirectory(directory);
         var fileName = string.Concat(machine.DisplayName.Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
         var path = Path.Combine(directory, $"{fileName}.rdp");
