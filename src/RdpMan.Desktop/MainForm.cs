@@ -15,11 +15,15 @@ public sealed class MainForm : Form
     private readonly List<MachineEntry> _temporaryMachines = [];
     private readonly System.Windows.Forms.Timer _sessionSweepTimer = new();
     private bool _restoredRememberedSessions;
+    private bool _syncingMachineSelection;
     private Guid? _toolTipMachineId;
+    private Guid? _selectedMachineId;
     private AppData _data = new();
 
+    private readonly ListBox _connectedMachineList = new();
     private readonly ListBox _machineList = new();
     private readonly Panel _machineListHost = new();
+    private readonly Label _connectedHeader = new();
     private readonly TextBox _search = AppTheme.TextBox();
     private readonly ToolTip _machineToolTip = new();
     private readonly Label _machineCount = new();
@@ -169,27 +173,20 @@ public sealed class MainForm : Form
         _search.Dock = DockStyle.Fill;
         searchWrap.Controls.Add(_search);
 
-        _machineList.Dock = DockStyle.Fill;
-        _machineList.DisplayMember = nameof(MachineEntry.DisplayName);
-        _machineList.BorderStyle = BorderStyle.None;
-        _machineList.BackColor = AppTheme.Sidebar;
-        _machineList.ForeColor = Color.White;
-        _machineList.Font = AppTheme.UiFont;
-        _machineList.ItemHeight = 56;
-        _machineList.DrawMode = DrawMode.OwnerDrawFixed;
-        _machineList.IntegralHeight = false;
-        _machineList.DrawItem += DrawMachineItem;
-        _machineList.SelectedIndexChanged += (_, _) =>
-        {
-            ShowSelectedSession();
-            _machineListHost.Invalidate();
-        };
-        _machineList.DoubleClick += (_, _) => ConnectSelected();
-        _machineList.MouseDown += SelectMachineForContextMenu;
-        _machineList.MouseMove += ShowMachineTooltip;
-        _machineList.MouseLeave += (_, _) => HideMachineTooltip();
-        _machineList.MouseWheel += (_, _) => _machineListHost.Invalidate();
+        ConfigureMachineList(_connectedMachineList);
+        ConfigureMachineList(_machineList);
         BuildMachineContextMenu();
+
+        _connectedHeader.Dock = DockStyle.Top;
+        _connectedHeader.Height = 24;
+        _connectedHeader.Text = "VERBUNDEN";
+        _connectedHeader.ForeColor = Color.FromArgb(100, 116, 139);
+        _connectedHeader.Font = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
+        _connectedHeader.Padding = new Padding(10, 7, 0, 0);
+        _connectedHeader.BackColor = AppTheme.Sidebar;
+        _connectedHeader.Visible = false;
+        _connectedMachineList.Dock = DockStyle.Top;
+        _connectedMachineList.Visible = false;
 
         _machineListHost.Dock = DockStyle.Fill;
         _machineListHost.BackColor = AppTheme.Sidebar;
@@ -197,6 +194,8 @@ public sealed class MainForm : Form
         _machineListHost.Paint += DrawMachineListScrollIndicator;
         _machineListHost.Resize += (_, _) => LayoutMachineList();
         _machineListHost.Controls.Add(_machineList);
+        _machineListHost.Controls.Add(_connectedMachineList);
+        _machineListHost.Controls.Add(_connectedHeader);
         LayoutMachineList();
 
         var bottomActions = SidebarButtonGrid(1, height: 66, topPadding: 12, bottomPadding: 12);
@@ -212,12 +211,34 @@ public sealed class MainForm : Form
         return sidebar;
     }
 
+    private void ConfigureMachineList(ListBox list)
+    {
+        list.Dock = DockStyle.Fill;
+        list.DisplayMember = nameof(MachineEntry.DisplayName);
+        list.BorderStyle = BorderStyle.None;
+        list.BackColor = AppTheme.Sidebar;
+        list.ForeColor = Color.White;
+        list.Font = AppTheme.UiFont;
+        list.ItemHeight = 56;
+        list.DrawMode = DrawMode.OwnerDrawFixed;
+        list.IntegralHeight = false;
+        list.DrawItem += DrawMachineItem;
+        list.SelectedIndexChanged += MachineSelectionChanged;
+        list.DoubleClick += (_, _) => ConnectSelected();
+        list.MouseDown += SelectMachineForContextMenu;
+        list.MouseMove += ShowMachineTooltip;
+        list.MouseLeave += (_, _) => HideMachineTooltip();
+        list.MouseWheel += (_, _) => _machineListHost.Invalidate();
+    }
+
     private void LayoutMachineList()
     {
         var hiddenScrollWidth = SystemInformation.VerticalScrollBarWidth + 4;
         _machineList.Dock = DockStyle.None;
-        _machineList.Location = new Point(0, 0);
-        _machineList.Size = new Size(_machineListHost.ClientSize.Width + hiddenScrollWidth, _machineListHost.ClientSize.Height);
+        var normalTop = (_connectedHeader.Visible ? _connectedHeader.Height : 0) + (_connectedMachineList.Visible ? _connectedMachineList.Height : 0);
+        _machineList.Location = new Point(0, normalTop);
+        _machineList.Size = new Size(_machineListHost.ClientSize.Width + hiddenScrollWidth, Math.Max(0, _machineListHost.ClientSize.Height - normalTop));
+        _connectedMachineList.Width = _machineListHost.ClientSize.Width + hiddenScrollWidth;
         _machineListHost.Invalidate();
     }
 
@@ -317,39 +338,51 @@ public sealed class MainForm : Form
             return;
         }
 
-        var index = _machineList.IndexFromPoint(e.Location);
+        if (sender is not ListBox list)
+        {
+            return;
+        }
+
+        var index = list.IndexFromPoint(e.Location);
         if (index < 0)
         {
             return;
         }
 
-        _machineList.SelectedIndex = index;
-        _machineMenu.Show(_machineList, e.Location);
+        list.SelectedIndex = index;
+        _machineMenu.Show(list, e.Location);
     }
 
     private void ShowMachineTooltip(object? sender, MouseEventArgs e)
     {
-        var index = _machineList.IndexFromPoint(e.Location);
-        if (index < 0 || index >= _machineList.Items.Count)
+        if (sender is not ListBox list)
         {
             HideMachineTooltip();
             return;
         }
 
-        var machine = (MachineEntry)_machineList.Items[index];
+        var index = list.IndexFromPoint(e.Location);
+        if (index < 0 || index >= list.Items.Count)
+        {
+            HideMachineTooltip();
+            return;
+        }
+
+        var machine = (MachineEntry)list.Items[index];
         if (_toolTipMachineId == machine.Id)
         {
             return;
         }
 
         _toolTipMachineId = machine.Id;
-        _machineToolTip.SetToolTip(_machineList, MachineTooltip(machine));
+        _machineToolTip.SetToolTip(list, MachineTooltip(machine));
     }
 
     private void HideMachineTooltip()
     {
         _toolTipMachineId = null;
         _machineToolTip.SetToolTip(_machineList, "");
+        _machineToolTip.SetToolTip(_connectedMachineList, "");
     }
 
     private string MachineTooltip(MachineEntry machine)
@@ -398,21 +431,15 @@ public sealed class MainForm : Form
 
     private void DrawMachineItem(object? sender, DrawItemEventArgs e)
     {
-        if (e.Index < 0 || e.Index >= _machineList.Items.Count)
+        if (sender is not ListBox list || e.Index < 0 || e.Index >= list.Items.Count)
         {
             return;
         }
 
-        var machine = (MachineEntry)_machineList.Items[e.Index];
+        var machine = (MachineEntry)list.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
         var isConnected = IsSessionConnected(machine.Id);
-        var hasSeparator = IsFirstDisconnectedAfterConnected(e.Index, isConnected);
         var bounds = Rectangle.Inflate(e.Bounds, -2, -4);
-        if (hasSeparator)
-        {
-            bounds.Y += 10;
-            bounds.Height -= 10;
-        }
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
             ? selected ? Color.FromArgb(22, 78, 99) : Color.FromArgb(19, 50, 60)
@@ -426,16 +453,6 @@ public sealed class MainForm : Form
         using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
 
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
-
-        if (hasSeparator)
-        {
-            using var separatorPen = new Pen(Color.FromArgb(51, 65, 85), 1);
-            using var separatorText = new SolidBrush(Color.FromArgb(100, 116, 139));
-            using var separatorFont = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
-            var y = e.Bounds.Top + 1;
-            e.Graphics.DrawLine(separatorPen, e.Bounds.Left + 12, y, e.Bounds.Right - 16, y);
-            e.Graphics.DrawString("NICHT VERBUNDEN", separatorFont, separatorText, e.Bounds.Left + 16, y + 3);
-        }
 
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
@@ -452,14 +469,6 @@ public sealed class MainForm : Form
             e.Graphics.FillRoundedRectangle(badgeBackground, badge, 6);
             e.Graphics.DrawString("LIVE", badgeFont, badgeText, badge.Left + 7, badge.Top + 3);
         }
-    }
-
-    private bool IsFirstDisconnectedAfterConnected(int index, bool isConnected)
-    {
-        return !isConnected
-            && index > 0
-            && _machineList.Items[index - 1] is MachineEntry previous
-            && IsSessionConnected(previous.Id);
     }
 
     private void DrawMachineListScrollIndicator(object? sender, PaintEventArgs e)
@@ -627,26 +636,41 @@ public sealed class MainForm : Form
 
     private void RefreshMachineList()
     {
-        var selectedId = SelectedMachine()?.Id;
+        var selectedId = _selectedMachineId ?? SelectedMachine()?.Id;
         var filter = _search.Text.Trim();
-        var machines = _data.Machines
+        var allMachines = _data.Machines
             .Concat(_temporaryMachines)
             .Where(machine => MatchesFilter(machine, filter))
-            .OrderByDescending(machine => IsSessionConnected(machine.Id))
-            .ThenByDescending(machine => machine.IsTemporary)
+            .ToList();
+        var connectedMachines = allMachines
+            .Where(machine => IsSessionConnected(machine.Id))
+            .OrderByDescending(machine => machine.IsTemporary)
+            .ThenByDescending(machine => machine.IsFavorite)
+            .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
+            .ThenBy(machine => machine.DisplayName)
+            .ToList();
+        var machines = allMachines
+            .Where(machine => !IsSessionConnected(machine.Id))
+            .OrderByDescending(machine => machine.IsTemporary)
             .ThenByDescending(machine => machine.IsFavorite)
             .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
             .ThenBy(machine => machine.DisplayName)
             .ToList();
 
+        _connectedMachineList.DataSource = null;
+        _connectedMachineList.DataSource = connectedMachines;
         _machineList.DataSource = null;
         _machineList.DataSource = machines;
+        _connectedHeader.Visible = connectedMachines.Count > 0;
+        _connectedMachineList.Visible = connectedMachines.Count > 0;
+        _connectedMachineList.Height = Math.Min(connectedMachines.Count * _connectedMachineList.ItemHeight, 180);
         var countText = _data.Machines.Count == 1 ? "1 Maschine" : $"{_data.Machines.Count} Maschinen";
         _machineCount.Text = _temporaryMachines.Count == 0 ? countText : $"{countText}, {_temporaryMachines.Count} ad hoc";
         if (selectedId is not null)
         {
-            _machineList.SelectedItem = machines.FirstOrDefault(machine => machine.Id == selectedId);
+            SelectMachine(selectedId.Value);
         }
+        LayoutMachineList();
         _machineListHost.Invalidate();
     }
 
@@ -672,17 +696,82 @@ public sealed class MainForm : Form
 
     private void SelectMachine(Guid machineId)
     {
-        foreach (var item in _machineList.Items)
+        _syncingMachineSelection = true;
+        try
         {
-            if (item is MachineEntry machine && machine.Id == machineId)
+            _connectedMachineList.ClearSelected();
+            _machineList.ClearSelected();
+            foreach (var item in _connectedMachineList.Items)
             {
-                _machineList.SelectedItem = machine;
-                return;
+                if (item is MachineEntry machine && machine.Id == machineId)
+                {
+                    _connectedMachineList.SelectedItem = machine;
+                    _selectedMachineId = machineId;
+                    return;
+                }
             }
+
+            foreach (var item in _machineList.Items)
+            {
+                if (item is MachineEntry machine && machine.Id == machineId)
+                {
+                    _machineList.SelectedItem = machine;
+                    _selectedMachineId = machineId;
+                    return;
+                }
+            }
+            _selectedMachineId = null;
+        }
+        finally
+        {
+            _syncingMachineSelection = false;
         }
     }
 
-    private MachineEntry? SelectedMachine() => _machineList.SelectedItem as MachineEntry;
+    private MachineEntry? SelectedMachine()
+    {
+        if (_selectedMachineId is not null)
+        {
+            foreach (var item in _connectedMachineList.Items.Cast<MachineEntry>().Concat(_machineList.Items.Cast<MachineEntry>()))
+            {
+                if (item.Id == _selectedMachineId)
+                {
+                    return item;
+                }
+            }
+        }
+
+        return _connectedMachineList.SelectedItem as MachineEntry ?? _machineList.SelectedItem as MachineEntry;
+    }
+
+    private void MachineSelectionChanged(object? sender, EventArgs e)
+    {
+        if (_syncingMachineSelection || sender is not ListBox list || list.SelectedItem is not MachineEntry machine)
+        {
+            return;
+        }
+
+        _syncingMachineSelection = true;
+        try
+        {
+            if (!ReferenceEquals(list, _connectedMachineList))
+            {
+                _connectedMachineList.ClearSelected();
+            }
+            if (!ReferenceEquals(list, _machineList))
+            {
+                _machineList.ClearSelected();
+            }
+            _selectedMachineId = machine.Id;
+        }
+        finally
+        {
+            _syncingMachineSelection = false;
+        }
+
+        ShowSelectedSession();
+        _machineListHost.Invalidate();
+    }
 
     private IRemoteSessionHost? ActiveSession()
     {
@@ -734,22 +823,24 @@ public sealed class MainForm : Form
             && DateTime.UtcNow - startedAt < ConnectionStartupGrace;
     }
 
-    private void MarkSessionConnected(Guid machineId)
+    private bool MarkSessionConnected(Guid machineId)
     {
+        var newlyConnected = !_sessionWasConnected.Contains(machineId);
         _sessionStartedAt.Remove(machineId);
         _sessionWasConnected.Add(machineId);
+        return newlyConnected;
     }
 
     private void SweepDisconnectedSessions(bool refreshUi = true, bool notifyFailures = true)
     {
         var selectedId = SelectedMachine()?.Id;
-        var removedAny = false;
+        var changedAny = false;
 
         foreach (var (machineId, session) in _sessions.ToList())
         {
             if (session.IsConnected)
             {
-                MarkSessionConnected(machineId);
+                changedAny |= MarkSessionConnected(machineId);
                 continue;
             }
 
@@ -759,10 +850,10 @@ public sealed class MainForm : Form
             }
 
             CleanupDeadSession(machineId, session, notifyFailures);
-            removedAny = true;
+            changedAny = true;
         }
 
-        if (!removedAny || !refreshUi)
+        if (!changedAny || !refreshUi)
         {
             return;
         }
@@ -925,7 +1016,8 @@ public sealed class MainForm : Form
             ShowSessionControl(session);
             session.Connect();
             RememberSession(machine.Id);
-            _machineList.Invalidate();
+            SelectMachine(machine.Id);
+            RefreshMachineList();
             _statusLabel.Text = $"Verbinde mit {machine.DisplayName}";
             return true;
         }
