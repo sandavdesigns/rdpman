@@ -672,16 +672,18 @@ public sealed class MainForm : Form
             .ToList();
         var connectedMachines = allMachines
             .Where(machine => IsSessionConnected(machine.Id))
-            .OrderByDescending(machine => machine.IsTemporary)
+            .OrderByDescending(HasGroup)
+            .ThenBy(GroupSortName)
+            .ThenByDescending(machine => machine.IsTemporary)
             .ThenByDescending(machine => machine.IsFavorite)
-            .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
             .ThenBy(machine => machine.DisplayName)
             .ToList();
         var machines = allMachines
             .Where(machine => !IsSessionConnected(machine.Id))
-            .OrderByDescending(machine => machine.IsTemporary)
+            .OrderByDescending(HasGroup)
+            .ThenBy(GroupSortName)
+            .ThenByDescending(machine => machine.IsTemporary)
             .ThenByDescending(machine => machine.IsFavorite)
-            .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
             .ThenBy(machine => machine.DisplayName)
             .ToList();
 
@@ -716,6 +718,16 @@ public sealed class MainForm : Form
             || Contains(machine.GroupName, filter)
             || Contains(GroupFor(machine)?.DisplayName, filter)
             || Contains(machine.Notes, filter);
+    }
+
+    private bool HasGroup(MachineEntry machine)
+    {
+        return GroupFor(machine) is not null;
+    }
+
+    private string GroupSortName(MachineEntry machine)
+    {
+        return GroupFor(machine)?.DisplayName ?? "";
     }
 
     private static bool Contains(string? value, string filter)
