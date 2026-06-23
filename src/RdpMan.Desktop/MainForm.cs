@@ -988,6 +988,12 @@ public sealed class MainForm : Form
             return;
         }
 
+        if (_sessions.ContainsKey(machine.Id))
+        {
+            ReconnectMachine(machine);
+            return;
+        }
+
         ConnectMachine(machine, CredentialFor(machine), showErrors: true);
     }
 
@@ -1155,25 +1161,32 @@ public sealed class MainForm : Form
 
     private void ReconnectSelected()
     {
-        var session = ActiveSession();
-        if (session is null)
+        var machine = SelectedMachine();
+        if (machine is null)
         {
-            ConnectSelected();
             return;
         }
 
+        ReconnectMachine(machine);
+    }
+
+    private void ReconnectMachine(MachineEntry machine)
+    {
         try
         {
-            session.Reconnect();
-            _machineList.Invalidate();
-            _statusLabel.Text = $"Reconnect: {session.Machine.DisplayName}";
+            if (ConnectMachine(machine, CredentialFor(machine), showErrors: true, replaceExistingSession: true))
+            {
+                _machineList.Invalidate();
+                _connectedMachineList.Invalidate();
+                _statusLabel.Text = $"Reconnect: {machine.DisplayName}";
+            }
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = $"Reconnect fehlgeschlagen: {session.Machine.DisplayName}";
+            _statusLabel.Text = $"Reconnect fehlgeschlagen: {machine.DisplayName}";
             MessageBox.Show(
                 this,
-                $"Reconnect zu \"{session.Machine.DisplayName}\" ist fehlgeschlagen.\n\n{ex.Message}",
+                $"Reconnect zu \"{machine.DisplayName}\" ist fehlgeschlagen.\n\n{ex.Message}",
                 Brand.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
