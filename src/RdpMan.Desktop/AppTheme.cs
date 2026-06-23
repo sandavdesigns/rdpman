@@ -137,6 +137,15 @@ internal static class AppTheme
 
     public static void DrawLogo(Graphics graphics, Rectangle bounds)
     {
+#if KASTEN3000
+        DrawKastenLogo(graphics, bounds);
+#else
+        DrawPingLogo(graphics, bounds);
+#endif
+    }
+
+    private static void DrawPingLogo(Graphics graphics, Rectangle bounds)
+    {
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var background = new SolidBrush(SidebarAlt);
         using var accent = new SolidBrush(Accent);
@@ -171,6 +180,41 @@ internal static class AppTheme
         graphics.FillEllipse(green, center.X - bounds.Width * 0.055f, center.Y - bounds.Width * 0.055f, bounds.Width * 0.11f, bounds.Width * 0.11f);
 
         graphics.DrawString("PING", titleFont, text, bounds.Left + bounds.Width * 0.17f, bounds.Top + bounds.Height * 0.66f);
+    }
+
+    private static void DrawKastenLogo(Graphics graphics, Rectangle bounds)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var background = new SolidBrush(Color.FromArgb(30, 24, 20));
+        using var crate = new SolidBrush(Color.FromArgb(180, 83, 9));
+        using var crateDark = new SolidBrush(Color.FromArgb(120, 53, 15));
+        using var bottle = new SolidBrush(Color.FromArgb(22, 101, 52));
+        using var cap = new SolidBrush(Color.FromArgb(250, 204, 21));
+        using var foam = new SolidBrush(Color.FromArgb(254, 243, 199));
+        using var text = new SolidBrush(Color.White);
+        using var titleFont = new Font("Segoe UI Semibold", Math.Max(7, bounds.Height * 0.16f), FontStyle.Bold);
+
+        graphics.FillRoundedRectangle(background, bounds, Math.Max(8, bounds.Width / 8));
+
+        var crateRect = Rectangle.Inflate(bounds, -bounds.Width / 7, -bounds.Height / 4);
+        crateRect.Y += bounds.Height / 10;
+        crateRect.Height = bounds.Height / 3;
+        graphics.FillRoundedRectangle(crate, crateRect, Math.Max(4, bounds.Width / 18));
+        graphics.FillRectangle(crateDark, crateRect.Left + crateRect.Width / 10, crateRect.Top + crateRect.Height / 3, crateRect.Width * 4 / 5, Math.Max(4, crateRect.Height / 6));
+
+        var bottleWidth = Math.Max(4, bounds.Width / 10);
+        var bottleHeight = Math.Max(12, bounds.Height / 4);
+        var startX = bounds.Left + bounds.Width / 4;
+        for (var index = 0; index < 4; index++)
+        {
+            var x = startX + index * bounds.Width / 7;
+            var y = bounds.Top + bounds.Height / 4;
+            graphics.FillRoundedRectangle(bottle, new Rectangle(x, y, bottleWidth, bottleHeight), Math.Max(2, bottleWidth / 3));
+            graphics.FillRectangle(cap, x + bottleWidth / 5, y - Math.Max(2, bounds.Height / 24), bottleWidth * 3 / 5, Math.Max(2, bounds.Height / 20));
+            graphics.FillEllipse(foam, x + bottleWidth / 4, y + bottleHeight / 5, bottleWidth / 2, bottleWidth / 2);
+        }
+
+        graphics.DrawString("K3000", titleFont, text, bounds.Left + bounds.Width * 0.13f, bounds.Top + bounds.Height * 0.66f);
     }
 
     private static Icon LoadAppIcon()
