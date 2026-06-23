@@ -184,10 +184,10 @@ public sealed class MainForm : Form
         _connectedHeader.Font = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
         _connectedHeader.Padding = new Padding(10, 7, 0, 0);
         _connectedHeader.BackColor = AppTheme.Sidebar;
-        _connectedHeader.Paint += DrawConnectedSeparator;
         _connectedHeader.Visible = false;
         _connectedMachineList.Dock = DockStyle.Top;
         _connectedMachineList.Visible = false;
+        _connectedMachineList.Paint += DrawConnectedSeparator;
 
         _machineListHost.Dock = DockStyle.Fill;
         _machineListHost.BackColor = AppTheme.Sidebar;
@@ -234,8 +234,13 @@ public sealed class MainForm : Form
 
     private void DrawConnectedSeparator(object? sender, PaintEventArgs e)
     {
+        if (!_connectedMachineList.Visible)
+        {
+            return;
+        }
+
         using var pen = new Pen(Color.FromArgb(51, 65, 85), 1);
-        e.Graphics.DrawLine(pen, 10, _connectedHeader.Height - 1, _connectedHeader.Width - 10, _connectedHeader.Height - 1);
+        e.Graphics.DrawLine(pen, 10, _connectedMachineList.Height - 5, _connectedMachineList.Width - 10, _connectedMachineList.Height - 5);
     }
 
     private void LayoutMachineList()
@@ -686,7 +691,9 @@ public sealed class MainForm : Form
         _machineList.DataSource = machines;
         _connectedHeader.Visible = connectedMachines.Count > 0;
         _connectedMachineList.Visible = connectedMachines.Count > 0;
-        _connectedMachineList.Height = Math.Min(connectedMachines.Count * _connectedMachineList.ItemHeight, 180);
+        _connectedMachineList.Height = connectedMachines.Count == 0
+            ? 0
+            : Math.Min(connectedMachines.Count * _connectedMachineList.ItemHeight + 10, 190);
         var countText = _data.Machines.Count == 1 ? "1 Maschine" : $"{_data.Machines.Count} Maschinen";
         _machineCount.Text = _temporaryMachines.Count == 0 ? countText : $"{countText}, {_temporaryMachines.Count} ad hoc";
         if (selectedId is not null)
