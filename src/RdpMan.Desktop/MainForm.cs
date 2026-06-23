@@ -473,12 +473,12 @@ public sealed class MainForm : Form
 
     private void DrawMachineListScrollIndicator(object? sender, PaintEventArgs e)
     {
-        if (_machineList.Items.Count == 0 || _machineList.ItemHeight <= 0)
+        if (_machineList.Items.Count == 0 || _machineList.ItemHeight <= 0 || _machineList.Height <= 0)
         {
             return;
         }
 
-        var visibleItems = Math.Max(1, _machineListHost.ClientSize.Height / _machineList.ItemHeight);
+        var visibleItems = Math.Max(1, _machineList.Height / _machineList.ItemHeight);
         if (_machineList.Items.Count <= visibleItems)
         {
             return;
@@ -487,9 +487,9 @@ public sealed class MainForm : Form
         const int width = 4;
         var track = new Rectangle(
             _machineListHost.ClientSize.Width - width,
-            8,
+            _machineList.Top + 8,
             width,
-            Math.Max(1, _machineListHost.ClientSize.Height - 16));
+            Math.Max(1, _machineList.Height - 16));
         var thumbHeight = Math.Max(34, track.Height * visibleItems / _machineList.Items.Count);
         var maxTopIndex = Math.Max(1, _machineList.Items.Count - visibleItems);
         var top = track.Top + (track.Height - thumbHeight) * Math.Min(_machineList.TopIndex, maxTopIndex) / maxTopIndex;
