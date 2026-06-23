@@ -5,9 +5,13 @@ namespace RdpMan.Desktop;
 
 public sealed class MainForm : Form
 {
+    private static readonly TimeSpan ConnectionStartupGrace = TimeSpan.FromMinutes(1);
+
     private readonly DataStore _store = new();
     private readonly Dictionary<Guid, IRemoteSessionHost> _sessions = [];
     private readonly Dictionary<Guid, DateTime> _sessionStartedAt = [];
+    private readonly Dictionary<Guid, bool> _sessionShowErrors = [];
+    private readonly HashSet<Guid> _sessionWasConnected = [];
     private readonly List<MachineEntry> _temporaryMachines = [];
     private readonly System.Windows.Forms.Timer _sessionSweepTimer = new();
     private bool _restoredRememberedSessions;
@@ -15,6 +19,7 @@ public sealed class MainForm : Form
     private AppData _data = new();
 
     private readonly ListBox _machineList = new();
+    private readonly Panel _machineListHost = new();
     private readonly TextBox _search = AppTheme.TextBox();
     private readonly ToolTip _machineToolTip = new();
     private readonly Label _machineCount = new();
@@ -174,24 +179,46 @@ public sealed class MainForm : Form
         _machineList.DrawMode = DrawMode.OwnerDrawFixed;
         _machineList.IntegralHeight = false;
         _machineList.DrawItem += DrawMachineItem;
-        _machineList.SelectedIndexChanged += (_, _) => ShowSelectedSession();
+        _machineList.SelectedIndexChanged += (_, _) =>
+        {
+            ShowSelectedSession();
+            _machineListHost.Invalidate();
+        };
         _machineList.DoubleClick += (_, _) => ConnectSelected();
         _machineList.MouseDown += SelectMachineForContextMenu;
         _machineList.MouseMove += ShowMachineTooltip;
         _machineList.MouseLeave += (_, _) => HideMachineTooltip();
+        _machineList.MouseWheel += (_, _) => _machineListHost.Invalidate();
         BuildMachineContextMenu();
+
+        _machineListHost.Dock = DockStyle.Fill;
+        _machineListHost.BackColor = AppTheme.Sidebar;
+        _machineListHost.Padding = new Padding(0, 0, 8, 0);
+        _machineListHost.Paint += DrawMachineListScrollIndicator;
+        _machineListHost.Resize += (_, _) => LayoutMachineList();
+        _machineListHost.Controls.Add(_machineList);
+        LayoutMachineList();
 
         var bottomActions = SidebarButtonGrid(1, height: 66, topPadding: 12, bottomPadding: 12);
         var setup = AppTheme.SidebarButton("Setup", primary: true);
         setup.Click += (_, _) => OpenSetup();
         AddSidebarButton(bottomActions, setup, 0);
 
-        sidebar.Controls.Add(_machineList);
+        sidebar.Controls.Add(_machineListHost);
         sidebar.Controls.Add(bottomActions);
         sidebar.Controls.Add(searchWrap);
         sidebar.Controls.Add(quickActions);
         sidebar.Controls.Add(header);
         return sidebar;
+    }
+
+    private void LayoutMachineList()
+    {
+        var hiddenScrollWidth = SystemInformation.VerticalScrollBarWidth + 4;
+        _machineList.Dock = DockStyle.None;
+        _machineList.Location = new Point(0, 0);
+        _machineList.Size = new Size(_machineListHost.ClientSize.Width + hiddenScrollWidth, _machineListHost.ClientSize.Height);
+        _machineListHost.Invalidate();
     }
 
     private Panel BuildWorkspace()
@@ -240,7 +267,7 @@ public sealed class MainForm : Form
                 return;
             }
 
-            SweepDisconnectedSessions(refreshUi: false);
+            SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
             var isConnected = IsSessionConnected(machine.Id);
             connect.Enabled = true;
             connectAs.Enabled = true;
@@ -408,6 +435,37 @@ public sealed class MainForm : Form
         }
     }
 
+    private void DrawMachineListScrollIndicator(object? sender, PaintEventArgs e)
+    {
+        if (_machineList.Items.Count == 0 || _machineList.ItemHeight <= 0)
+        {
+            return;
+        }
+
+        var visibleItems = Math.Max(1, _machineListHost.ClientSize.Height / _machineList.ItemHeight);
+        if (_machineList.Items.Count <= visibleItems)
+        {
+            return;
+        }
+
+        const int width = 4;
+        var track = new Rectangle(
+            _machineListHost.ClientSize.Width - width,
+            8,
+            width,
+            Math.Max(1, _machineListHost.ClientSize.Height - 16));
+        var thumbHeight = Math.Max(34, track.Height * visibleItems / _machineList.Items.Count);
+        var maxTopIndex = Math.Max(1, _machineList.Items.Count - visibleItems);
+        var top = track.Top + (track.Height - thumbHeight) * Math.Min(_machineList.TopIndex, maxTopIndex) / maxTopIndex;
+        var thumb = new Rectangle(track.Left, top, track.Width, thumbHeight);
+
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var trackBrush = new SolidBrush(Color.FromArgb(30, 41, 59));
+        using var thumbBrush = new SolidBrush(Color.FromArgb(71, 85, 105));
+        e.Graphics.FillRoundedRectangle(trackBrush, track, 2);
+        e.Graphics.FillRoundedRectangle(thumbBrush, thumb, 2);
+    }
+
     private void LoadData()
     {
         _data = _store.Load();
@@ -482,7 +540,7 @@ public sealed class MainForm : Form
 
     private void RememberConnectedSessions()
     {
-        SweepDisconnectedSessions(refreshUi: false);
+        SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
         _data.AutoReconnectMachineIds = _sessions
             .Where(entry => entry.Value.IsConnected && !_temporaryMachines.Any(machine => machine.Id == entry.Key))
             .Select(entry => entry.Key)
@@ -547,6 +605,7 @@ public sealed class MainForm : Form
         {
             _machineList.SelectedItem = machines.FirstOrDefault(machine => machine.Id == selectedId);
         }
+        _machineListHost.Invalidate();
     }
 
     private bool MatchesFilter(MachineEntry machine, string filter)
@@ -598,7 +657,7 @@ public sealed class MainForm : Form
 
         if (session.IsConnected)
         {
-            _sessionStartedAt.Remove(machineId);
+            MarkSessionConnected(machineId);
             return true;
         }
 
@@ -607,7 +666,7 @@ public sealed class MainForm : Form
             return true;
         }
 
-        CleanupDeadSession(machineId, session);
+        CleanupDeadSession(machineId, session, notifyFailure: true);
         return false;
     }
 
@@ -623,17 +682,23 @@ public sealed class MainForm : Form
             return false;
         }
 
-        _sessionStartedAt.Remove(machineId);
+        MarkSessionConnected(machineId);
         return true;
     }
 
     private bool IsSessionStarting(Guid machineId)
     {
         return _sessionStartedAt.TryGetValue(machineId, out var startedAt)
-            && DateTime.UtcNow - startedAt < TimeSpan.FromSeconds(8);
+            && DateTime.UtcNow - startedAt < ConnectionStartupGrace;
     }
 
-    private void SweepDisconnectedSessions(bool refreshUi = true)
+    private void MarkSessionConnected(Guid machineId)
+    {
+        _sessionStartedAt.Remove(machineId);
+        _sessionWasConnected.Add(machineId);
+    }
+
+    private void SweepDisconnectedSessions(bool refreshUi = true, bool notifyFailures = true)
     {
         var selectedId = SelectedMachine()?.Id;
         var removedAny = false;
@@ -642,7 +707,7 @@ public sealed class MainForm : Form
         {
             if (session.IsConnected)
             {
-                _sessionStartedAt.Remove(machineId);
+                MarkSessionConnected(machineId);
                 continue;
             }
 
@@ -651,7 +716,7 @@ public sealed class MainForm : Form
                 continue;
             }
 
-            CleanupDeadSession(machineId, session);
+            CleanupDeadSession(machineId, session, notifyFailures);
             removedAny = true;
         }
 
@@ -668,13 +733,33 @@ public sealed class MainForm : Form
         ShowSelectedSession();
     }
 
-    private void CleanupDeadSession(Guid machineId, IRemoteSessionHost session)
+    private void CleanupDeadSession(Guid machineId, IRemoteSessionHost session, bool notifyFailure)
     {
+        var machine = session.Machine;
+        var wasConnected = _sessionWasConnected.Remove(machineId);
+        var hadStartup = _sessionStartedAt.Remove(machineId);
+        var showError = _sessionShowErrors.Remove(machineId, out var shouldShow) && shouldShow;
+
         session.Dispose();
         _sessions.Remove(machineId);
-        _sessionStartedAt.Remove(machineId);
         ForgetSession(machineId);
         _temporaryMachines.RemoveAll(machine => machine.Id == machineId);
+
+        if (notifyFailure && showError && hadStartup && !wasConnected)
+        {
+            NotifyConnectionFailed(machine);
+        }
+    }
+
+    private void NotifyConnectionFailed(MachineEntry machine)
+    {
+        _statusLabel.Text = $"Verbindung fehlgeschlagen: {machine.DisplayName}";
+        MessageBox.Show(
+            this,
+            $"Die RDP-Verbindung zu \"{machine.DisplayName}\" wurde nicht hergestellt.\n\nDer Zielrechner ist eventuell nicht erreichbar, RDP ist deaktiviert, die Anmeldung wurde abgebrochen oder die Sicherheitsabfrage wurde nicht bestätigt.",
+            "RDP Man",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
     }
 
     private CredentialProfile? CredentialFor(MachineEntry machine)
@@ -781,6 +866,8 @@ public sealed class MainForm : Form
                 existingSession.Dispose();
                 _sessions.Remove(machine.Id);
                 _sessionStartedAt.Remove(machine.Id);
+                _sessionShowErrors.Remove(machine.Id);
+                _sessionWasConnected.Remove(machine.Id);
             }
 
             if (!_sessions.TryGetValue(machine.Id, out var session))
@@ -788,6 +875,8 @@ public sealed class MainForm : Form
                 session = CreateSessionHost(machine, credential);
                 _sessions[machine.Id] = session;
                 _sessionStartedAt[machine.Id] = DateTime.UtcNow;
+                _sessionShowErrors[machine.Id] = showErrors;
+                _sessionWasConnected.Remove(machine.Id);
             }
 
             ShowSessionControl(session);
@@ -804,6 +893,8 @@ public sealed class MainForm : Form
                 failedSession.Dispose();
                 _sessions.Remove(machine.Id);
                 _sessionStartedAt.Remove(machine.Id);
+                _sessionShowErrors.Remove(machine.Id);
+                _sessionWasConnected.Remove(machine.Id);
             }
             ForgetSession(machine.Id);
             RemoveTemporaryMachine(machine.Id);
@@ -842,6 +933,8 @@ public sealed class MainForm : Form
             session.Dispose();
             _sessions.Remove(machineId);
             _sessionStartedAt.Remove(machineId);
+            _sessionShowErrors.Remove(machineId);
+            _sessionWasConnected.Remove(machineId);
         }
     }
 
@@ -883,6 +976,8 @@ public sealed class MainForm : Form
         session.Dispose();
         _sessions.Remove(machine.Id);
         _sessionStartedAt.Remove(machine.Id);
+        _sessionShowErrors.Remove(machine.Id);
+        _sessionWasConnected.Remove(machine.Id);
         ForgetSession(machine.Id);
         RemoveTemporaryMachine(machine.Id);
         ShowSelectedSession();
