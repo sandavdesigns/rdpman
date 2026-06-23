@@ -1134,6 +1134,7 @@ public sealed class MainForm : Form
                 _sessionWasConnected.Remove(machine.Id);
             }
 
+            ShowSessionControl(session);
             session.Connect();
             RememberSession(machine.Id);
             SelectMachine(machine.Id);
