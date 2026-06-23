@@ -38,7 +38,7 @@ public sealed class MachineEntry
     public string? Notes { get; set; }
     public Guid? CredentialProfileId { get; set; }
     public bool IsFavorite { get; set; }
-    public bool UseGlobalRedirectSettings { get; set; }
+    public bool? UseGlobalRedirectSettings { get; set; }
     public bool RedirectClipboard { get; set; }
     public bool RedirectPrinters { get; set; }
     public bool RedirectSmartCards { get; set; }

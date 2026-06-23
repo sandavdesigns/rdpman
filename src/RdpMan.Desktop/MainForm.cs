@@ -386,7 +386,7 @@ public sealed class MainForm : Form
         }
         lines.Add($"Zugang: {credential}");
         lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
-        lines.Add($"Freigaben-Modus: {(machine.UseGlobalRedirectSettings ? "global" : "Rechner")}");
+        lines.Add($"Freigaben-Modus: {(machine.UseGlobalRedirectSettings != false ? "global" : "Rechner")}");
         if (!string.IsNullOrWhiteSpace(machine.Notes))
         {
             lines.Add("");
@@ -406,7 +406,13 @@ public sealed class MainForm : Form
         var machine = (MachineEntry)_machineList.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
         var isConnected = IsSessionConnected(machine.Id);
+        var hasSeparator = IsFirstDisconnectedAfterConnected(e.Index, isConnected);
         var bounds = Rectangle.Inflate(e.Bounds, -2, -4);
+        if (hasSeparator)
+        {
+            bounds.Y += 10;
+            bounds.Height -= 10;
+        }
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
             ? selected ? Color.FromArgb(22, 78, 99) : Color.FromArgb(19, 50, 60)
@@ -420,6 +426,17 @@ public sealed class MainForm : Form
         using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
 
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
+
+        if (hasSeparator)
+        {
+            using var separatorPen = new Pen(Color.FromArgb(51, 65, 85), 1);
+            using var separatorText = new SolidBrush(Color.FromArgb(100, 116, 139));
+            using var separatorFont = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
+            var y = e.Bounds.Top + 1;
+            e.Graphics.DrawLine(separatorPen, e.Bounds.Left + 12, y, e.Bounds.Right - 16, y);
+            e.Graphics.DrawString("NICHT VERBUNDEN", separatorFont, separatorText, e.Bounds.Left + 16, y + 3);
+        }
+
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
         e.Graphics.DrawString(displayName, titleFont, title, bounds.Left + 48, bounds.Top + 8);
@@ -435,6 +452,14 @@ public sealed class MainForm : Form
             e.Graphics.FillRoundedRectangle(badgeBackground, badge, 6);
             e.Graphics.DrawString("LIVE", badgeFont, badgeText, badge.Left + 7, badge.Top + 3);
         }
+    }
+
+    private bool IsFirstDisconnectedAfterConnected(int index, bool isConnected)
+    {
+        return !isConnected
+            && index > 0
+            && _machineList.Items[index - 1] is MachineEntry previous
+            && IsSessionConnected(previous.Id);
     }
 
     private void DrawMachineListScrollIndicator(object? sender, PaintEventArgs e)
@@ -478,6 +503,11 @@ public sealed class MainForm : Form
     {
         foreach (var machine in _data.Machines)
         {
+            if (machine.UseGlobalRedirectSettings is null || HasLegacyDefaultRedirectSettings(machine))
+            {
+                machine.UseGlobalRedirectSettings = true;
+            }
+
             if (machine.GroupId is not null || string.IsNullOrWhiteSpace(machine.GroupName))
             {
                 continue;
@@ -496,6 +526,15 @@ public sealed class MainForm : Form
 
             machine.GroupId = group.Id;
         }
+    }
+
+    private static bool HasLegacyDefaultRedirectSettings(MachineEntry machine)
+    {
+        return machine.UseGlobalRedirectSettings == false
+            && !machine.RedirectClipboard
+            && !machine.RedirectPrinters
+            && !machine.RedirectSmartCards
+            && !machine.RedirectWebAuthn;
     }
 
     private Color MachineColor(MachineEntry machine, bool isConnected)
@@ -593,7 +632,8 @@ public sealed class MainForm : Form
         var machines = _data.Machines
             .Concat(_temporaryMachines)
             .Where(machine => MatchesFilter(machine, filter))
-            .OrderByDescending(machine => machine.IsTemporary)
+            .OrderByDescending(machine => IsSessionConnected(machine.Id))
+            .ThenByDescending(machine => machine.IsTemporary)
             .ThenByDescending(machine => machine.IsFavorite)
             .ThenBy(machine => GroupFor(machine)?.DisplayName ?? "~")
             .ThenBy(machine => machine.DisplayName)
@@ -946,7 +986,7 @@ public sealed class MainForm : Form
 
     private RedirectSettings EffectiveRedirectSettings(MachineEntry machine)
     {
-        return machine.UseGlobalRedirectSettings
+        return machine.UseGlobalRedirectSettings != false
             ? new RedirectSettings(
                 _data.GlobalRedirectClipboard,
                 _data.GlobalRedirectPrinters,

@@ -34,7 +34,7 @@ public sealed class MachineEditForm : Form
                 Notes = machine.Notes,
                 CredentialProfileId = machine.CredentialProfileId,
                 IsFavorite = machine.IsFavorite,
-                UseGlobalRedirectSettings = machine.UseGlobalRedirectSettings,
+                UseGlobalRedirectSettings = machine.UseGlobalRedirectSettings ?? true,
                 RedirectClipboard = machine.RedirectClipboard,
                 RedirectPrinters = machine.RedirectPrinters,
                 RedirectSmartCards = machine.RedirectSmartCards,
@@ -155,7 +155,7 @@ public sealed class MachineEditForm : Form
         _dnsName.Text = Machine?.DnsName ?? "";
         _notes.Text = Machine?.Notes ?? "";
         _favorite.Checked = Machine?.IsFavorite == true;
-        _useGlobalRedirectSettings.Checked = Machine?.UseGlobalRedirectSettings == true;
+        _useGlobalRedirectSettings.Checked = Machine?.UseGlobalRedirectSettings != false;
         if (_useGlobalRedirectSettings.Checked)
         {
             ApplyGlobalRedirectValues();
