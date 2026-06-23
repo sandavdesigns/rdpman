@@ -80,6 +80,15 @@ internal static class AppTheme
         return button;
     }
 
+    public static Button SidebarIconButton(string symbol, bool primary = false)
+    {
+        var button = SidebarButton(symbol, primary);
+        button.Font = new Font("Segoe UI Symbol", 14f, FontStyle.Regular);
+        button.Margin = new Padding(3);
+        button.AccessibleName = symbol;
+        return button;
+    }
+
     public static Label Label(string text)
     {
         return new Label

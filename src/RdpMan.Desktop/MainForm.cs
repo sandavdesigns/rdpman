@@ -26,6 +26,7 @@ public sealed class MainForm : Form
     private readonly Label _connectedHeader = new();
     private readonly TextBox _search = AppTheme.TextBox();
     private readonly ToolTip _machineToolTip = new();
+    private readonly ToolTip _sidebarToolTip = new();
     private readonly Label _machineCount = new();
     private readonly Panel _rdpPanel = new();
     private readonly Label _placeholder = new();
@@ -121,16 +122,20 @@ public sealed class MainForm : Form
             Padding = new Padding(18),
         };
 
-        var header = new Panel { Dock = DockStyle.Top, Height = 94, BackColor = AppTheme.Sidebar };
-        header.Paint += (_, e) => AppTheme.DrawLogo(e.Graphics, new Rectangle(0, 6, 56, 56));
+        _sidebarToolTip.InitialDelay = 700;
+        _sidebarToolTip.ReshowDelay = 120;
+        _sidebarToolTip.AutoPopDelay = 7000;
+
+        var header = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = AppTheme.Sidebar };
+        header.Paint += (_, e) => AppTheme.DrawLogo(e.Graphics, new Rectangle(0, 8, 46, 46));
         header.MouseClick += HeaderMouseClick;
 
         var title = new Label
         {
             Text = Brand.AppName,
             ForeColor = Color.White,
-            Font = new Font("Segoe UI Semibold", 15f, FontStyle.Bold),
-            Location = new Point(70, 10),
+            Font = new Font("Segoe UI Semibold", 13f, FontStyle.Bold),
+            Location = new Point(58, 8),
             AutoSize = true,
         };
         var subtitle = new Label
@@ -138,28 +143,27 @@ public sealed class MainForm : Form
             Text = Brand.AppSubtitle,
             ForeColor = Color.FromArgb(203, 213, 225),
             Font = AppTheme.SmallFont,
-            Location = new Point(72, 42),
+            Location = new Point(60, 34),
             AutoSize = true,
         };
         _machineCount.Text = "0 Maschinen";
         _machineCount.ForeColor = Color.FromArgb(148, 163, 184);
         _machineCount.Font = AppTheme.SmallFont;
-        _machineCount.Location = new Point(72, 64);
+        _machineCount.Location = new Point(60, 55);
         _machineCount.AutoSize = true;
         header.Controls.Add(title);
         header.Controls.Add(subtitle);
         header.Controls.Add(_machineCount);
 
-        var quickActions = SidebarButtonGrid(3, height: 52, topPadding: 4, bottomPadding: 8);
-        var add = AppTheme.SidebarButton("Neu", primary: true);
-        var edit = AppTheme.SidebarButton("Bearbeiten");
-        var adHoc = AppTheme.SidebarButton("Ad hoc");
-        add.Click += (_, _) => AddMachine();
-        edit.Click += (_, _) => EditMachine();
-        adHoc.Click += (_, _) => ConnectAdHoc();
+        var quickActions = SidebarButtonGrid(4, height: 52, topPadding: 2, bottomPadding: 8);
+        var add = SidebarActionButton("+", "Neuen Rechner anlegen", primary: true, (_, _) => AddMachine());
+        var edit = SidebarActionButton("✎", "Ausgewaehlten Rechner bearbeiten", primary: false, (_, _) => EditMachine());
+        var adHoc = SidebarActionButton("▶", "Ad-hoc-Verbindung starten", primary: false, (_, _) => ConnectAdHoc());
+        var setup = SidebarActionButton("⚙", "Setup oeffnen", primary: false, (_, _) => OpenSetup());
         AddSidebarButton(quickActions, add, 0);
         AddSidebarButton(quickActions, edit, 1);
         AddSidebarButton(quickActions, adHoc, 2);
+        AddSidebarButton(quickActions, setup, 3);
 
         _search.PlaceholderText = "Suchen...";
         _search.BorderStyle = BorderStyle.FixedSingle;
@@ -203,17 +207,19 @@ public sealed class MainForm : Form
         _machineListHost.Controls.Add(_connectedHeader);
         LayoutMachineList();
 
-        var bottomActions = SidebarButtonGrid(1, height: 66, topPadding: 12, bottomPadding: 12);
-        var setup = AppTheme.SidebarButton("Setup", primary: true);
-        setup.Click += (_, _) => OpenSetup();
-        AddSidebarButton(bottomActions, setup, 0);
-
         sidebar.Controls.Add(_machineListHost);
-        sidebar.Controls.Add(bottomActions);
         sidebar.Controls.Add(searchWrap);
         sidebar.Controls.Add(quickActions);
         sidebar.Controls.Add(header);
         return sidebar;
+    }
+
+    private Button SidebarActionButton(string symbol, string toolTip, bool primary, EventHandler onClick)
+    {
+        var button = AppTheme.SidebarIconButton(symbol, primary);
+        button.Click += onClick;
+        _sidebarToolTip.SetToolTip(button, toolTip);
+        return button;
     }
 
     private void ConfigureMachineList(ListBox list)
@@ -589,7 +595,7 @@ public sealed class MainForm : Form
 
     private void HeaderMouseClick(object? sender, MouseEventArgs e)
     {
-        var logoBounds = new Rectangle(0, 6, 56, 56);
+        var logoBounds = new Rectangle(0, 8, 46, 46);
         if (!logoBounds.Contains(e.Location))
         {
             return;
@@ -675,13 +681,14 @@ public sealed class MainForm : Form
 
         var currentMachineIds = _data.Machines.Select(machine => machine.Id).ToHashSet();
         var openSessionIds = _sessions.Keys
-            .Where(machineId => currentMachineIds.Contains(machineId) && !IsTemporaryMachine(machineId));
-
-        _data.AutoReconnectMachineIds = _data.AutoReconnectMachineIds
-            .Concat(openSessionIds)
-            .Where(machineId => currentMachineIds.Contains(machineId))
+            .ToList()
+            .Where(machineId => currentMachineIds.Contains(machineId)
+                && !IsTemporaryMachine(machineId)
+                && IsSessionConnected(machineId))
             .Distinct()
             .ToList();
+
+        _data.AutoReconnectMachineIds = openSessionIds;
     }
 
     private bool IsTemporaryMachine(Guid machineId)
@@ -986,10 +993,7 @@ public sealed class MainForm : Form
 
         session.Dispose();
         _sessions.Remove(machineId);
-        if (!wasConnected)
-        {
-            ForgetSession(machineId);
-        }
+        ForgetSession(machineId);
         _temporaryMachines.RemoveAll(machine => machine.Id == machineId);
 
         if (notifyFailure && showError && hadStartup && !wasConnected)
