@@ -763,7 +763,7 @@ public sealed class MainForm : Form
         _connectedMachineList.Visible = connectedMachines.Count > 0;
         _connectedMachineList.Height = connectedMachines.Count == 0
             ? 0
-            : Math.Min(connectedMachines.Count * _connectedMachineList.ItemHeight + 10, 190);
+            : connectedMachines.Count * _connectedMachineList.ItemHeight + 10;
         var countText = _data.Machines.Count == 1 ? "1 Maschine" : $"{_data.Machines.Count} Maschinen";
         _machineCount.Text = _temporaryMachines.Count == 0 ? countText : $"{countText}, {_temporaryMachines.Count} ad hoc";
         if (selectedId is not null)
@@ -938,6 +938,7 @@ public sealed class MainForm : Form
         var newlyConnected = !_sessionWasConnected.Contains(machineId);
         _sessionStartedAt.Remove(machineId);
         _sessionWasConnected.Add(machineId);
+        RememberSession(machineId);
         return newlyConnected;
     }
 
@@ -1136,7 +1137,6 @@ public sealed class MainForm : Form
 
             ShowSessionControl(session);
             session.Connect();
-            RememberSession(machine.Id);
             SelectMachine(machine.Id);
             RefreshMachineList();
             SelectMachine(machine.Id);
