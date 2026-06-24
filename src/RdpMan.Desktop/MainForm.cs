@@ -485,14 +485,18 @@ public sealed class MainForm : Form
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
         e.Graphics.DrawString(displayName, titleFont, title, bounds.Left + 48, bounds.Top + 8);
 
-        var secondary = machine.IsTemporary
-            ? $"Ad hoc - {machine.DnsName}"
-            : GroupFor(machine) is not { } group ? machine.DnsName : $"{group.DisplayName} - {machine.DnsName}";
-        e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 27);
+        var secondary = SecondaryMachineLine(machine);
+        var ipTop = 27;
+        if (!string.IsNullOrWhiteSpace(secondary))
+        {
+            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 27);
+            ipTop = 43;
+        }
+
         if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
         {
             var ipLine = $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
-            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 43);
+            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + ipTop);
         }
 
         if (isConnected)
@@ -532,6 +536,24 @@ public sealed class MainForm : Form
         using var thumbBrush = new SolidBrush(Color.FromArgb(71, 85, 105));
         e.Graphics.FillRoundedRectangle(trackBrush, track, 2);
         e.Graphics.FillRoundedRectangle(thumbBrush, thumb, 2);
+    }
+
+    private string SecondaryMachineLine(MachineEntry machine)
+    {
+        if (machine.IsTemporary)
+        {
+            return $"Ad hoc - {machine.DnsName}";
+        }
+
+        var showDnsName = !string.Equals(machine.DisplayName, machine.DnsName, StringComparison.OrdinalIgnoreCase);
+        var group = GroupFor(machine);
+        return (group, showDnsName) switch
+        {
+            ({ } currentGroup, true) => $"{currentGroup.DisplayName} - {machine.DnsName}",
+            ({ } currentGroup, false) => currentGroup.DisplayName,
+            (null, true) => machine.DnsName,
+            _ => "",
+        };
     }
 
     private void LoadData()
