@@ -161,12 +161,12 @@ public sealed class MainForm : Form
 
     private void ConfigureExitFullScreenButton()
     {
-        _exitFullScreenButton.Text = "×";
-        _exitFullScreenButton.Size = new Size(34, 30);
+        _exitFullScreenButton.Text = "Vollbild verlassen";
+        _exitFullScreenButton.Size = new Size(132, 30);
         _exitFullScreenButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         _exitFullScreenButton.FlatStyle = FlatStyle.Flat;
-        _exitFullScreenButton.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
-        _exitFullScreenButton.BackColor = Color.FromArgb(15, 23, 42);
+        _exitFullScreenButton.Font = new Font("Segoe UI Semibold", 8.5f, FontStyle.Bold);
+        _exitFullScreenButton.BackColor = Color.FromArgb(17, 24, 39);
         _exitFullScreenButton.ForeColor = Color.White;
         _exitFullScreenButton.Cursor = Cursors.Hand;
         _exitFullScreenButton.Visible = false;
@@ -183,8 +183,8 @@ public sealed class MainForm : Form
     private void PositionExitFullScreenButton()
     {
         _exitFullScreenButton.Location = new Point(
-            Math.Max(0, ClientSize.Width - _exitFullScreenButton.Width - 14),
-            14);
+            Math.Max(0, ClientSize.Width - _exitFullScreenButton.Width - 18),
+            56);
     }
 
     private static string AppVersion()
@@ -246,16 +246,38 @@ public sealed class MainForm : Form
         AddSidebarButton(quickActions, setup, 3);
 
         _search.PlaceholderText = "Suchen...";
-        _search.BorderStyle = BorderStyle.FixedSingle;
+        _search.BorderStyle = BorderStyle.None;
         _search.BackColor = Color.FromArgb(31, 41, 55);
         _search.ForeColor = Color.White;
         _search.Margin = new Padding(0);
-        var clearSearch = AppTheme.SidebarIconButton("×");
-        clearSearch.Width = 28;
-        clearSearch.Dock = DockStyle.Right;
+        var searchBox = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(31, 41, 55),
+            Padding = new Padding(8, 6, 30, 0),
+        };
+        searchBox.Paint += (_, e) =>
+        {
+            using var border = new Pen(Color.FromArgb(71, 85, 105));
+            e.Graphics.DrawRectangle(border, 0, 0, searchBox.Width - 1, searchBox.Height - 1);
+        };
+        var clearSearch = new Button
+        {
+            Text = "×",
+            Size = new Size(22, 22),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+            BackColor = Color.FromArgb(31, 41, 55),
+            ForeColor = Color.FromArgb(226, 232, 240),
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            Visible = false,
+        };
+        clearSearch.FlatAppearance.BorderSize = 0;
+        clearSearch.FlatAppearance.MouseOverBackColor = Color.FromArgb(51, 65, 85);
+        clearSearch.FlatAppearance.MouseDownBackColor = Color.FromArgb(71, 85, 105);
         clearSearch.Visible = false;
-        clearSearch.Margin = new Padding(6, 0, 0, 0);
-        clearSearch.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
         clearSearch.Click += (_, _) =>
         {
             _search.Clear();
@@ -267,6 +289,13 @@ public sealed class MainForm : Form
             clearSearch.Visible = !string.IsNullOrWhiteSpace(_search.Text);
             RefreshMachineList();
         };
+        void PositionClearSearchButton()
+        {
+            clearSearch.Location = new Point(
+                Math.Max(0, searchBox.ClientSize.Width - clearSearch.Width - 4),
+                Math.Max(0, (searchBox.ClientSize.Height - clearSearch.Height) / 2));
+        }
+        searchBox.Resize += (_, _) => PositionClearSearchButton();
         var searchWrap = new Panel
         {
             Dock = DockStyle.Top,
@@ -275,9 +304,11 @@ public sealed class MainForm : Form
             Padding = new Padding(6, 8, 6, 8),
         };
         _search.Dock = DockStyle.Fill;
-        searchWrap.Controls.Add(_search);
-        searchWrap.Controls.Add(clearSearch);
+        searchBox.Controls.Add(_search);
+        searchBox.Controls.Add(clearSearch);
         clearSearch.BringToFront();
+        PositionClearSearchButton();
+        searchWrap.Controls.Add(searchBox);
 
         ConfigureMachineList(_connectedMachineList);
         ConfigureMachineList(_machineList);
