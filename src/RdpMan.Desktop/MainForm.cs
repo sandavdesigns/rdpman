@@ -250,7 +250,23 @@ public sealed class MainForm : Form
         _search.BackColor = Color.FromArgb(31, 41, 55);
         _search.ForeColor = Color.White;
         _search.Margin = new Padding(0);
-        _search.TextChanged += (_, _) => RefreshMachineList();
+        var clearSearch = AppTheme.SidebarIconButton("×");
+        clearSearch.Width = 28;
+        clearSearch.Dock = DockStyle.Right;
+        clearSearch.Visible = false;
+        clearSearch.Margin = new Padding(6, 0, 0, 0);
+        clearSearch.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+        clearSearch.Click += (_, _) =>
+        {
+            _search.Clear();
+            _search.Focus();
+        };
+        _sidebarToolTip.SetToolTip(clearSearch, "Suche leeren");
+        _search.TextChanged += (_, _) =>
+        {
+            clearSearch.Visible = !string.IsNullOrWhiteSpace(_search.Text);
+            RefreshMachineList();
+        };
         var searchWrap = new Panel
         {
             Dock = DockStyle.Top,
@@ -260,6 +276,8 @@ public sealed class MainForm : Form
         };
         _search.Dock = DockStyle.Fill;
         searchWrap.Controls.Add(_search);
+        searchWrap.Controls.Add(clearSearch);
+        clearSearch.BringToFront();
 
         ConfigureMachineList(_connectedMachineList);
         ConfigureMachineList(_machineList);
