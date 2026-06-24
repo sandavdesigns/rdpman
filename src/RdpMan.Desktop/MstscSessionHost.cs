@@ -72,7 +72,7 @@ public sealed class MstscSessionHost : IRemoteSessionHost
         {
             StoreCredential();
             var sessionSize = CurrentSessionSize();
-            var targetHost = Machine.DnsName.Trim();
+            var targetHost = RdpConnectionProfile.ConnectionAddress(Machine);
             if (string.IsNullOrWhiteSpace(targetHost))
             {
                 throw new InvalidOperationException("Kein Zielhost für die RDP-Verbindung angegeben.");
@@ -335,16 +335,17 @@ public sealed class MstscSessionHost : IRemoteSessionHost
         }
 
         var password = CredentialVault.Unprotect(Credential.ProtectedPassword);
-        var targetHost = RdpConnectionProfile.TargetHost(Machine);
+        var targetHost = RdpConnectionProfile.ConnectionTargetHost(Machine);
         if (string.IsNullOrWhiteSpace(targetHost))
         {
             return;
         }
 
         RunCmdKey($"/generic:TERMSRV/{targetHost} /user:\"{username}\" /pass:\"{password}\"");
-        if (!string.Equals(targetHost, Machine.DnsName, StringComparison.OrdinalIgnoreCase))
+        var originalTargetHost = RdpConnectionProfile.TargetHost(Machine);
+        if (!string.Equals(targetHost, originalTargetHost, StringComparison.OrdinalIgnoreCase))
         {
-            RunCmdKey($"/generic:TERMSRV/{Machine.DnsName} /user:\"{username}\" /pass:\"{password}\"");
+            RunCmdKey($"/generic:TERMSRV/{originalTargetHost} /user:\"{username}\" /pass:\"{password}\"");
         }
     }
 

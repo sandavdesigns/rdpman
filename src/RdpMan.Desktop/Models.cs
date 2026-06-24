@@ -35,6 +35,7 @@ public sealed class MachineEntry
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string DnsName { get; set; } = "";
+    public string LastKnownIpAddress { get; set; } = "";
     public Guid? GroupId { get; set; }
     public string GroupName { get; set; } = "";
     public string ColorKey { get; set; } = "";
@@ -52,6 +53,9 @@ public sealed class MachineEntry
 
     [JsonIgnore]
     public bool IsTemporary { get; set; }
+
+    [JsonIgnore]
+    public string ConnectionHost { get; set; } = "";
 }
 
 public sealed class CredentialProfile

@@ -28,6 +28,7 @@ public sealed class MachineEditForm : Form
                 Id = machine.Id,
                 Name = machine.Name,
                 DnsName = machine.DnsName,
+                LastKnownIpAddress = machine.LastKnownIpAddress,
                 GroupId = machine.GroupId,
                 GroupName = machine.GroupName,
                 ColorKey = machine.ColorKey,

@@ -23,14 +23,37 @@ public static class RdpConnectionProfile
     public static string TargetHost(MachineEntry machine)
     {
         var host = machine.DnsName.Trim();
+        return HostPart(host);
+    }
+
+    public static string ConnectionAddress(MachineEntry machine)
+    {
+        return string.IsNullOrWhiteSpace(machine.ConnectionHost)
+            ? machine.DnsName.Trim()
+            : machine.ConnectionHost.Trim();
+    }
+
+    public static string ConnectionTargetHost(MachineEntry machine)
+    {
+        return HostPart(ConnectionAddress(machine));
+    }
+
+    private static string HostPart(string host)
+    {
         if (host.StartsWith("[", StringComparison.Ordinal))
         {
             var end = host.IndexOf(']');
             return end > 1 ? host[1..end] : host;
         }
 
-        var colonIndex = host.IndexOf(':');
-        return colonIndex > 0 ? host[..colonIndex] : host;
+        var colonCount = host.Count(character => character == ':');
+        if (colonCount == 1)
+        {
+            var colonIndex = host.IndexOf(':');
+            return colonIndex > 0 ? host[..colonIndex] : host;
+        }
+
+        return host;
     }
 
     public static string WriteRdpFile(MachineEntry machine, CredentialProfile? credential, Size desktopSize)
@@ -62,7 +85,7 @@ public static class RdpConnectionProfile
             "enablecredsspsupport:i:1",
             "prompt for credentials:i:0",
             "promptcredentialonce:i:1",
-            $"full address:s:{machine.DnsName}",
+            $"full address:s:{ConnectionAddress(machine)}",
         };
         if (!string.IsNullOrWhiteSpace(username))
         {

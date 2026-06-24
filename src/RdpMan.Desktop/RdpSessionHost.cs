@@ -94,7 +94,7 @@ public sealed class RdpSessionHost : IRemoteSessionHost
         var ocx = ActiveXControl.OcxObject;
         var desktopSize = DesktopSizeForHost();
         _lastAppliedDesktopSize = desktopSize;
-        SetProperty(ocx, "Server", Machine.DnsName.Trim());
+        SetProperty(ocx, "Server", RdpConnectionProfile.ConnectionAddress(Machine));
         SetProperty(ocx, "UserName", RdpConnectionProfile.BuildUsername(Machine, Credential));
         SetProperty(ocx, "ColorDepth", 32);
         SetProperty(ocx, "DesktopWidth", desktopSize.Width);

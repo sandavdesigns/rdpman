@@ -435,6 +435,10 @@ public sealed class MainForm : Form
             machine.DisplayName,
             $"Host: {machine.DnsName}",
         };
+        if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
+        {
+            lines.Add($"Letzte IP: {machine.LastKnownIpAddress}");
+        }
         if (group is not null)
         {
             lines.Add($"Gruppe: {group.DisplayName}");
@@ -945,8 +949,29 @@ public sealed class MainForm : Form
         var newlyConnected = !_sessionWasConnected.Contains(machineId);
         _sessionStartedAt.Remove(machineId);
         _sessionWasConnected.Add(machineId);
+        if (newlyConnected)
+        {
+            RememberLastKnownIp(machineId);
+        }
         RememberSession(machineId);
         return newlyConnected;
+    }
+
+    private void RememberLastKnownIp(Guid machineId)
+    {
+        var machine = _data.Machines.FirstOrDefault(item => item.Id == machineId);
+        if (machine is null || !EndpointResolver.TryResolveCurrentIp(machine, out var ipAddress))
+        {
+            return;
+        }
+
+        if (string.Equals(machine.LastKnownIpAddress, ipAddress, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        machine.LastKnownIpAddress = ipAddress;
+        SaveData();
     }
 
     private void SweepDisconnectedSessions(bool refreshUi = true, bool notifyFailures = true)
@@ -1185,7 +1210,9 @@ public sealed class MainForm : Form
 
     private IRemoteSessionHost CreateSessionHost(MachineEntry machine, CredentialProfile? credential)
     {
-        return new RdpSessionHost(MachineWithEffectiveRedirects(machine), credential);
+        var effectiveMachine = MachineWithEffectiveRedirects(machine);
+        effectiveMachine.ConnectionHost = EndpointResolver.SelectConnectionAddress(machine);
+        return new RdpSessionHost(effectiveMachine, credential);
     }
 
     private MachineEntry MachineWithEffectiveRedirects(MachineEntry machine)
@@ -1196,6 +1223,7 @@ public sealed class MainForm : Form
             Id = machine.Id,
             Name = machine.Name,
             DnsName = machine.DnsName,
+            LastKnownIpAddress = machine.LastKnownIpAddress,
             GroupId = machine.GroupId,
             GroupName = machine.GroupName,
             ColorKey = machine.ColorKey,
@@ -1208,6 +1236,7 @@ public sealed class MainForm : Form
             RedirectSmartCards = redirects.SmartCards,
             RedirectWebAuthn = redirects.WebAuthn,
             IsTemporary = machine.IsTemporary,
+            ConnectionHost = machine.ConnectionHost,
         };
     }
 
@@ -1451,8 +1480,10 @@ public sealed class MainForm : Form
             return;
         }
 
+        var dnsNameChanged = !string.Equals(machine.DnsName, dialog.Machine.DnsName, StringComparison.OrdinalIgnoreCase);
         machine.Name = dialog.Machine.Name;
         machine.DnsName = dialog.Machine.DnsName;
+        machine.LastKnownIpAddress = dnsNameChanged ? "" : dialog.Machine.LastKnownIpAddress;
         machine.GroupId = dialog.Machine.GroupId;
         machine.GroupName = dialog.Machine.GroupName;
         machine.ColorKey = dialog.Machine.ColorKey;
