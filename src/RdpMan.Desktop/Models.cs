@@ -36,6 +36,7 @@ public sealed class MachineEntry
     public string Name { get; set; } = "";
     public string DnsName { get; set; } = "";
     public string LastKnownIpAddress { get; set; } = "";
+    public DateTime? LastKnownIpUpdatedAtUtc { get; set; }
     public Guid? GroupId { get; set; }
     public string GroupName { get; set; } = "";
     public string ColorKey { get; set; } = "";

@@ -230,7 +230,7 @@ public sealed class MainForm : Form
         list.BackColor = AppTheme.Sidebar;
         list.ForeColor = Color.White;
         list.Font = AppTheme.UiFont;
-        list.ItemHeight = 56;
+        list.ItemHeight = 66;
         list.DrawMode = DrawMode.OwnerDrawFixed;
         list.IntegralHeight = false;
         list.DrawItem += DrawMachineItem;
@@ -438,6 +438,7 @@ public sealed class MainForm : Form
         if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
         {
             lines.Add($"Letzte IP: {machine.LastKnownIpAddress}");
+            lines.Add($"IP aktualisiert: {FormatLastKnownIpUpdated(machine)}");
         }
         if (group is not null)
         {
@@ -487,7 +488,12 @@ public sealed class MainForm : Form
         var secondary = machine.IsTemporary
             ? $"Ad hoc - {machine.DnsName}"
             : GroupFor(machine) is not { } group ? machine.DnsName : $"{group.DisplayName} - {machine.DnsName}";
-        e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 29);
+        e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 27);
+        if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
+        {
+            var ipLine = $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
+            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 43);
+        }
 
         if (isConnected)
         {
@@ -965,13 +971,16 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (string.Equals(machine.LastKnownIpAddress, ipAddress, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
         machine.LastKnownIpAddress = ipAddress;
+        machine.LastKnownIpUpdatedAtUtc = DateTime.UtcNow;
         SaveData();
+    }
+
+    private static string FormatLastKnownIpUpdated(MachineEntry machine)
+    {
+        return machine.LastKnownIpUpdatedAtUtc is { } updatedAt
+            ? updatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+            : "unbekannt";
     }
 
     private void SweepDisconnectedSessions(bool refreshUi = true, bool notifyFailures = true)
@@ -1224,6 +1233,7 @@ public sealed class MainForm : Form
             Name = machine.Name,
             DnsName = machine.DnsName,
             LastKnownIpAddress = machine.LastKnownIpAddress,
+            LastKnownIpUpdatedAtUtc = machine.LastKnownIpUpdatedAtUtc,
             GroupId = machine.GroupId,
             GroupName = machine.GroupName,
             ColorKey = machine.ColorKey,
@@ -1484,6 +1494,7 @@ public sealed class MainForm : Form
         machine.Name = dialog.Machine.Name;
         machine.DnsName = dialog.Machine.DnsName;
         machine.LastKnownIpAddress = dnsNameChanged ? "" : dialog.Machine.LastKnownIpAddress;
+        machine.LastKnownIpUpdatedAtUtc = dnsNameChanged ? null : dialog.Machine.LastKnownIpUpdatedAtUtc;
         machine.GroupId = dialog.Machine.GroupId;
         machine.GroupName = dialog.Machine.GroupName;
         machine.ColorKey = dialog.Machine.ColorKey;

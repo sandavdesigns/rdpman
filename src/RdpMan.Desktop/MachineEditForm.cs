@@ -4,6 +4,8 @@ public sealed class MachineEditForm : Form
 {
     private readonly TextBox _name = AppTheme.TextBox();
     private readonly TextBox _dnsName = AppTheme.TextBox();
+    private readonly TextBox _lastKnownIp = AppTheme.TextBox();
+    private readonly TextBox _lastKnownIpUpdated = AppTheme.TextBox();
     private readonly TextBox _notes = AppTheme.TextBox(multiline: true);
     private readonly ComboBox _group = new();
     private readonly ComboBox _credential = new();
@@ -29,6 +31,7 @@ public sealed class MachineEditForm : Form
                 Name = machine.Name,
                 DnsName = machine.DnsName,
                 LastKnownIpAddress = machine.LastKnownIpAddress,
+                LastKnownIpUpdatedAtUtc = machine.LastKnownIpUpdatedAtUtc,
                 GroupId = machine.GroupId,
                 GroupName = machine.GroupName,
                 ColorKey = machine.ColorKey,
@@ -44,8 +47,8 @@ public sealed class MachineEditForm : Form
 
         Text = machine is null ? "Maschine hinzufuegen" : "Maschine bearbeiten";
         Width = 600;
-        Height = 760;
-        MinimumSize = new Size(560, 640);
+        Height = 840;
+        MinimumSize = new Size(560, 720);
         AppTheme.ApplyWindow(this);
 
         BuildLayout();
@@ -84,8 +87,8 @@ public sealed class MachineEditForm : Form
         {
             Dock = DockStyle.Top,
             ColumnCount = 1,
-            RowCount = 10,
-            Height = 548,
+            RowCount = 12,
+            Height = 672,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -98,6 +101,8 @@ public sealed class MachineEditForm : Form
         AppTheme.StyleInput(_credential);
 
         ColorPalette.ConfigureColorCombo(_color);
+        StyleReadOnlyTextBox(_lastKnownIp);
+        StyleReadOnlyTextBox(_lastKnownIpUpdated);
 
         StyleCheckBox(_favorite, "Favorit");
         StyleCheckBox(_useGlobalRedirectSettings, "Globale Freigaben verwenden");
@@ -122,13 +127,15 @@ public sealed class MachineEditForm : Form
 
         layout.Controls.Add(Field("Name", _name, "z.B. Terminalserver 01"), 0, 0);
         layout.Controls.Add(Field("DNS-Name / Host", _dnsName, "server.domain.local oder IP"), 0, 1);
-        layout.Controls.Add(Field("Gruppe", _group), 0, 2);
-        layout.Controls.Add(Field("Farbe", _color), 0, 3);
-        layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 4);
-        layout.Controls.Add(CheckField(_favorite), 0, 5);
-        layout.Controls.Add(CheckField(_useGlobalRedirectSettings), 0, 6);
-        layout.Controls.Add(Field("RDP-Freigaben", security), 0, 7);
-        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 8);
+        layout.Controls.Add(Field("Letzte bekannte IP", _lastKnownIp), 0, 2);
+        layout.Controls.Add(Field("IP zuletzt aktualisiert", _lastKnownIpUpdated), 0, 3);
+        layout.Controls.Add(Field("Gruppe", _group), 0, 4);
+        layout.Controls.Add(Field("Farbe", _color), 0, 5);
+        layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 6);
+        layout.Controls.Add(CheckField(_favorite), 0, 7);
+        layout.Controls.Add(CheckField(_useGlobalRedirectSettings), 0, 8);
+        layout.Controls.Add(Field("RDP-Freigaben", security), 0, 9);
+        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 10);
 
         scroll.Controls.Add(layout);
 
@@ -154,6 +161,8 @@ public sealed class MachineEditForm : Form
     {
         _name.Text = Machine?.Name ?? "";
         _dnsName.Text = Machine?.DnsName ?? "";
+        _lastKnownIp.Text = string.IsNullOrWhiteSpace(Machine?.LastKnownIpAddress) ? "Noch nicht ermittelt" : Machine.LastKnownIpAddress;
+        _lastKnownIpUpdated.Text = FormatLastKnownIpUpdated(Machine);
         _notes.Text = Machine?.Notes ?? "";
         _favorite.Checked = Machine?.IsFavorite == true;
         _useGlobalRedirectSettings.Checked = Machine?.UseGlobalRedirectSettings != false;
@@ -287,6 +296,21 @@ public sealed class MachineEditForm : Form
         checkBox.Font = AppTheme.UiFont;
         checkBox.ForeColor = AppTheme.Text;
         checkBox.Margin = new Padding(0, 2, 18, 6);
+    }
+
+    private static void StyleReadOnlyTextBox(TextBox textBox)
+    {
+        textBox.ReadOnly = true;
+        textBox.BackColor = AppTheme.SurfaceAlt;
+        textBox.ForeColor = AppTheme.MutedText;
+        textBox.TabStop = false;
+    }
+
+    private static string FormatLastKnownIpUpdated(MachineEntry? machine)
+    {
+        return machine?.LastKnownIpUpdatedAtUtc is { } updatedAt
+            ? updatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+            : "Noch nicht aktualisiert";
     }
 
     private sealed record CredentialChoice(Guid? Id, string Label)
