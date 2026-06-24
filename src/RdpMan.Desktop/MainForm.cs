@@ -34,6 +34,12 @@ public sealed class MainForm : Form
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
     private readonly ToolStripStatusLabel _versionLabel = new();
+    private TableLayoutPanel? _rootLayout;
+    private Panel? _sidebarPanel;
+    private bool _isFullScreen;
+    private FormBorderStyle _windowedBorderStyle;
+    private FormWindowState _windowedWindowState;
+    private Rectangle _windowedBounds;
     private int _logoClickCount;
     private DateTime _lastLogoClickAt;
 
@@ -43,6 +49,7 @@ public sealed class MainForm : Form
         MinimumSize = new Size(1120, 720);
         Width = 1340;
         Height = 840;
+        KeyPreview = true;
         AppTheme.ApplyWindow(this);
 
         BuildLayout();
@@ -73,9 +80,45 @@ public sealed class MainForm : Form
         base.OnFormClosing(e);
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.F11)
+        {
+            ToggleFullScreen();
+            e.Handled = true;
+            return;
+        }
+
+        if (_isFullScreen && e.KeyCode == Keys.Escape)
+        {
+            ExitFullScreen();
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == Keys.F11)
+        {
+            ToggleFullScreen();
+            return true;
+        }
+
+        if (_isFullScreen && keyData == Keys.Escape)
+        {
+            ExitFullScreen();
+            return true;
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
     private void BuildLayout()
     {
-        var root = new TableLayoutPanel
+        _rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
@@ -83,14 +126,14 @@ public sealed class MainForm : Form
             BackColor = AppTheme.Window,
             Padding = new Padding(0),
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
+        _rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        var sidebar = BuildSidebar();
+        _sidebarPanel = BuildSidebar();
         var workspace = BuildWorkspace();
 
-        root.Controls.Add(sidebar, 0, 0);
-        root.Controls.Add(workspace, 1, 0);
+        _rootLayout.Controls.Add(_sidebarPanel, 0, 0);
+        _rootLayout.Controls.Add(workspace, 1, 0);
 
         _statusStrip.BackColor = Color.White;
         _statusStrip.SizingGrip = true;
@@ -102,7 +145,7 @@ public sealed class MainForm : Form
         _versionLabel.ForeColor = AppTheme.MutedText;
         _statusLabel.ForeColor = AppTheme.MutedText;
 
-        Controls.Add(root);
+        Controls.Add(_rootLayout);
         Controls.Add(_statusStrip);
         _statusStrip.Dock = DockStyle.Bottom;
     }
@@ -301,6 +344,7 @@ public sealed class MainForm : Form
         var delete = _machineMenu.Items.Add("Eintrag entfernen", null, (_, _) => DeleteMachine());
         var ping = _machineMenu.Items.Add("Ping -t", null, (_, _) => PingSelected());
         var reconnect = _machineMenu.Items.Add("Reconnect", null, (_, _) => ReconnectSelected());
+        var fullScreen = _machineMenu.Items.Add("Vollbild (F11)", null, (_, _) => ToggleFullScreen());
         _machineMenu.Opening += (_, e) =>
         {
             var machine = SelectedMachine();
@@ -320,7 +364,66 @@ public sealed class MainForm : Form
             delete.Enabled = true;
             ping.Enabled = true;
             reconnect.Enabled = true;
+            fullScreen.Text = _isFullScreen ? "Vollbild verlassen (Esc)" : "Vollbild (F11)";
         };
+    }
+
+    private void ToggleFullScreen()
+    {
+        if (_isFullScreen)
+        {
+            ExitFullScreen();
+            return;
+        }
+
+        EnterFullScreen();
+    }
+
+    private void EnterFullScreen()
+    {
+        if (_isFullScreen || _rootLayout is null || _sidebarPanel is null)
+        {
+            return;
+        }
+
+        _isFullScreen = true;
+        _windowedBorderStyle = FormBorderStyle;
+        _windowedWindowState = WindowState;
+        _windowedBounds = Bounds;
+
+        SuspendLayout();
+        _sidebarPanel.Visible = false;
+        _rootLayout.ColumnStyles[0].Width = 0;
+        _statusStrip.Visible = false;
+        FormBorderStyle = FormBorderStyle.None;
+        WindowState = FormWindowState.Normal;
+        Bounds = Screen.FromControl(this).Bounds;
+        ResumeLayout(performLayout: true);
+
+        _statusLabel.Text = "Vollbild aktiv - F11 oder Esc zum Verlassen";
+        ActiveSession()?.ResizeToHost();
+    }
+
+    private void ExitFullScreen()
+    {
+        if (!_isFullScreen || _rootLayout is null || _sidebarPanel is null)
+        {
+            return;
+        }
+
+        SuspendLayout();
+        FormBorderStyle = _windowedBorderStyle;
+        WindowState = FormWindowState.Normal;
+        Bounds = _windowedBounds;
+        WindowState = _windowedWindowState;
+        _rootLayout.ColumnStyles[0].Width = 320;
+        _sidebarPanel.Visible = true;
+        _statusStrip.Visible = true;
+        _isFullScreen = false;
+        ResumeLayout(performLayout: true);
+
+        _statusLabel.Text = SelectedMachine()?.DnsName ?? "Bereit";
+        ActiveSession()?.ResizeToHost();
     }
 
     private static TableLayoutPanel SidebarButtonGrid(int columns, int height, int topPadding, int bottomPadding, int rows = 1)
