@@ -39,6 +39,7 @@ public sealed class MainForm : Form
     private TableLayoutPanel? _rootLayout;
     private Panel? _sidebarPanel;
     private bool _isFullScreen;
+    private bool _exitFullScreenButtonExpanded;
     private FormBorderStyle _windowedBorderStyle;
     private FormWindowState _windowedWindowState;
     private Rectangle _windowedBounds;
@@ -162,8 +163,8 @@ public sealed class MainForm : Form
     private void ConfigureExitFullScreenButton()
     {
         _exitFullScreenButton.Text = "Vollbild verlassen";
-        _exitFullScreenButton.Size = new Size(132, 30);
-        _exitFullScreenButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _exitFullScreenButton.Size = new Size(150, 30);
+        _exitFullScreenButton.Anchor = AnchorStyles.Top;
         _exitFullScreenButton.FlatStyle = FlatStyle.Flat;
         _exitFullScreenButton.Font = new Font("Segoe UI Semibold", 8.5f, FontStyle.Bold);
         _exitFullScreenButton.BackColor = Color.FromArgb(17, 24, 39);
@@ -171,6 +172,8 @@ public sealed class MainForm : Form
         _exitFullScreenButton.Cursor = Cursors.Hand;
         _exitFullScreenButton.Visible = false;
         _exitFullScreenButton.Click += (_, _) => ExitFullScreen();
+        _exitFullScreenButton.MouseEnter += (_, _) => SetExitFullScreenButtonExpanded(expanded: true);
+        _exitFullScreenButton.MouseLeave += (_, _) => SetExitFullScreenButtonExpanded(expanded: false);
         _exitFullScreenButton.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
         _exitFullScreenButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
         _exitFullScreenButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(51, 65, 85);
@@ -183,8 +186,19 @@ public sealed class MainForm : Form
     private void PositionExitFullScreenButton()
     {
         _exitFullScreenButton.Location = new Point(
-            Math.Max(0, ClientSize.Width - _exitFullScreenButton.Width - 18),
-            56);
+            Math.Max(0, (ClientSize.Width - _exitFullScreenButton.Width) / 2),
+            _exitFullScreenButtonExpanded ? 8 : -24);
+    }
+
+    private void SetExitFullScreenButtonExpanded(bool expanded)
+    {
+        if (!_isFullScreen && expanded)
+        {
+            return;
+        }
+
+        _exitFullScreenButtonExpanded = expanded;
+        PositionExitFullScreenButton();
     }
 
     private static string AppVersion()
@@ -484,6 +498,7 @@ public sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.None;
         WindowState = FormWindowState.Normal;
         Bounds = Screen.FromControl(this).Bounds;
+        _exitFullScreenButtonExpanded = false;
         PositionExitFullScreenButton();
         _exitFullScreenButton.Visible = true;
         _exitFullScreenButton.BringToFront();
@@ -509,6 +524,7 @@ public sealed class MainForm : Form
         _sidebarPanel.Visible = true;
         _statusStrip.Visible = true;
         _exitFullScreenButton.Visible = false;
+        _exitFullScreenButtonExpanded = false;
         _isFullScreen = false;
         ResumeLayout(performLayout: true);
 
