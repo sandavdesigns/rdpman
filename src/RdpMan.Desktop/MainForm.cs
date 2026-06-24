@@ -34,6 +34,8 @@ public sealed class MainForm : Form
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
     private readonly ToolStripStatusLabel _versionLabel = new();
+    private readonly Button _exitFullScreenButton = new();
+    private readonly ToolTip _fullScreenToolTip = new();
     private TableLayoutPanel? _rootLayout;
     private Panel? _sidebarPanel;
     private bool _isFullScreen;
@@ -116,6 +118,12 @@ public sealed class MainForm : Form
         return base.ProcessCmdKey(ref msg, keyData);
     }
 
+    protected override void OnClientSizeChanged(EventArgs e)
+    {
+        base.OnClientSizeChanged(e);
+        PositionExitFullScreenButton();
+    }
+
     private void BuildLayout()
     {
         _rootLayout = new TableLayoutPanel
@@ -148,6 +156,35 @@ public sealed class MainForm : Form
         Controls.Add(_rootLayout);
         Controls.Add(_statusStrip);
         _statusStrip.Dock = DockStyle.Bottom;
+        ConfigureExitFullScreenButton();
+    }
+
+    private void ConfigureExitFullScreenButton()
+    {
+        _exitFullScreenButton.Text = "×";
+        _exitFullScreenButton.Size = new Size(34, 30);
+        _exitFullScreenButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _exitFullScreenButton.FlatStyle = FlatStyle.Flat;
+        _exitFullScreenButton.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
+        _exitFullScreenButton.BackColor = Color.FromArgb(15, 23, 42);
+        _exitFullScreenButton.ForeColor = Color.White;
+        _exitFullScreenButton.Cursor = Cursors.Hand;
+        _exitFullScreenButton.Visible = false;
+        _exitFullScreenButton.Click += (_, _) => ExitFullScreen();
+        _exitFullScreenButton.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
+        _exitFullScreenButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
+        _exitFullScreenButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(51, 65, 85);
+        _fullScreenToolTip.SetToolTip(_exitFullScreenButton, "Vollbild verlassen");
+        Controls.Add(_exitFullScreenButton);
+        PositionExitFullScreenButton();
+        _exitFullScreenButton.BringToFront();
+    }
+
+    private void PositionExitFullScreenButton()
+    {
+        _exitFullScreenButton.Location = new Point(
+            Math.Max(0, ClientSize.Width - _exitFullScreenButton.Width - 14),
+            14);
     }
 
     private static string AppVersion()
@@ -364,7 +401,7 @@ public sealed class MainForm : Form
             delete.Enabled = true;
             ping.Enabled = true;
             reconnect.Enabled = true;
-            fullScreen.Text = _isFullScreen ? "Vollbild verlassen (Esc)" : "Vollbild (F11)";
+            fullScreen.Text = _isFullScreen ? "Vollbild verlassen" : "Vollbild (F11)";
         };
     }
 
@@ -398,9 +435,12 @@ public sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.None;
         WindowState = FormWindowState.Normal;
         Bounds = Screen.FromControl(this).Bounds;
+        PositionExitFullScreenButton();
+        _exitFullScreenButton.Visible = true;
+        _exitFullScreenButton.BringToFront();
         ResumeLayout(performLayout: true);
 
-        _statusLabel.Text = "Vollbild aktiv - F11 oder Esc zum Verlassen";
+        _statusLabel.Text = "Vollbild aktiv - Button oben rechts oder F11 zum Verlassen";
         ActiveSession()?.ResizeToHost();
     }
 
@@ -419,6 +459,7 @@ public sealed class MainForm : Form
         _rootLayout.ColumnStyles[0].Width = 320;
         _sidebarPanel.Visible = true;
         _statusStrip.Visible = true;
+        _exitFullScreenButton.Visible = false;
         _isFullScreen = false;
         ResumeLayout(performLayout: true);
 
