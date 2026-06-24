@@ -478,30 +478,37 @@ public sealed class MainForm : Form
         using var badgeText = new SolidBrush(Color.FromArgb(5, 46, 22));
         using var titleFont = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
         using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
+        using var ellipsis = new StringFormat
+        {
+            Trimming = StringTrimming.EllipsisCharacter,
+            FormatFlags = StringFormatFlags.NoWrap,
+        };
 
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
 
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
+        var badge = new Rectangle(bounds.Right - 48, bounds.Top + 16, 38, 18);
+        var textRight = isConnected ? badge.Left - 8 : bounds.Right - 10;
+        var textWidth = Math.Max(32, textRight - (bounds.Left + 48));
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
-        e.Graphics.DrawString(displayName, titleFont, title, bounds.Left + 48, bounds.Top + 8);
+        e.Graphics.DrawString(displayName, titleFont, title, new RectangleF(bounds.Left + 48, bounds.Top + 8, textWidth, 18), ellipsis);
 
         var secondary = SecondaryMachineLine(machine);
         var ipTop = 27;
         if (!string.IsNullOrWhiteSpace(secondary))
         {
-            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + 27);
+            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 48, bounds.Top + 27, textWidth, 16), ellipsis);
             ipTop = 43;
         }
 
         if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
         {
             var ipLine = $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
-            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, bounds.Left + 48, bounds.Top + ipTop);
+            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 48, bounds.Top + ipTop, textWidth, 16), ellipsis);
         }
 
         if (isConnected)
         {
-            var badge = new Rectangle(bounds.Right - 48, bounds.Top + 16, 38, 18);
             e.Graphics.FillRoundedRectangle(badgeBackground, badge, 6);
             e.Graphics.DrawString("LIVE", badgeFont, badgeText, badge.Left + 7, badge.Top + 3);
         }
