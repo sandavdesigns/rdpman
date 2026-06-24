@@ -36,6 +36,7 @@ public sealed class MainForm : Form
     private readonly ToolStripStatusLabel _versionLabel = new();
     private readonly Button _exitFullScreenButton = new();
     private readonly ToolTip _fullScreenToolTip = new();
+    private readonly System.Windows.Forms.Timer _exitFullScreenCollapseTimer = new();
     private TableLayoutPanel? _rootLayout;
     private Panel? _sidebarPanel;
     private bool _isFullScreen;
@@ -62,6 +63,9 @@ public sealed class MainForm : Form
         _sessionSweepTimer.Interval = 1500;
         _sessionSweepTimer.Tick += (_, _) => SweepDisconnectedSessions();
         _sessionSweepTimer.Start();
+
+        _exitFullScreenCollapseTimer.Interval = 900;
+        _exitFullScreenCollapseTimer.Tick += (_, _) => CollapseFullScreenButtonIfMouseAway();
     }
 
     protected override void OnShown(EventArgs e)
@@ -74,6 +78,7 @@ public sealed class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         _sessionSweepTimer.Stop();
+        _exitFullScreenCollapseTimer.Stop();
         RememberConnectedSessions();
         SaveData();
         foreach (var session in _sessions.Values)
@@ -173,7 +178,7 @@ public sealed class MainForm : Form
         _exitFullScreenButton.Visible = false;
         _exitFullScreenButton.Click += (_, _) => ExitFullScreen();
         _exitFullScreenButton.MouseEnter += (_, _) => SetExitFullScreenButtonExpanded(expanded: true);
-        _exitFullScreenButton.MouseLeave += (_, _) => SetExitFullScreenButtonExpanded(expanded: false);
+        _exitFullScreenButton.MouseLeave += (_, _) => _exitFullScreenCollapseTimer.Start();
         _exitFullScreenButton.FlatAppearance.BorderColor = Color.FromArgb(51, 65, 85);
         _exitFullScreenButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59);
         _exitFullScreenButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(51, 65, 85);
@@ -187,7 +192,7 @@ public sealed class MainForm : Form
     {
         _exitFullScreenButton.Location = new Point(
             Math.Max(0, (ClientSize.Width - _exitFullScreenButton.Width) / 2),
-            _exitFullScreenButtonExpanded ? 8 : -24);
+            _exitFullScreenButtonExpanded ? 8 : -18);
     }
 
     private void SetExitFullScreenButtonExpanded(bool expanded)
@@ -197,7 +202,27 @@ public sealed class MainForm : Form
             return;
         }
 
+        _exitFullScreenCollapseTimer.Stop();
         _exitFullScreenButtonExpanded = expanded;
+        PositionExitFullScreenButton();
+    }
+
+    private void CollapseFullScreenButtonIfMouseAway()
+    {
+        _exitFullScreenCollapseTimer.Stop();
+        if (!_isFullScreen)
+        {
+            return;
+        }
+
+        var mousePosition = _exitFullScreenButton.PointToClient(Cursor.Position);
+        if (_exitFullScreenButton.ClientRectangle.Contains(mousePosition))
+        {
+            _exitFullScreenCollapseTimer.Start();
+            return;
+        }
+
+        _exitFullScreenButtonExpanded = false;
         PositionExitFullScreenButton();
     }
 
@@ -499,6 +524,7 @@ public sealed class MainForm : Form
         WindowState = FormWindowState.Normal;
         Bounds = Screen.FromControl(this).Bounds;
         _exitFullScreenButtonExpanded = false;
+        _exitFullScreenCollapseTimer.Stop();
         PositionExitFullScreenButton();
         _exitFullScreenButton.Visible = true;
         _exitFullScreenButton.BringToFront();
@@ -525,6 +551,7 @@ public sealed class MainForm : Form
         _statusStrip.Visible = true;
         _exitFullScreenButton.Visible = false;
         _exitFullScreenButtonExpanded = false;
+        _exitFullScreenCollapseTimer.Stop();
         _isFullScreen = false;
         ResumeLayout(performLayout: true);
 
