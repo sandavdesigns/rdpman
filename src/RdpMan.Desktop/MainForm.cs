@@ -404,10 +404,33 @@ public sealed class MainForm : Form
         list.DrawItem += DrawMachineItem;
         list.SelectedIndexChanged += MachineSelectionChanged;
         list.DoubleClick += (_, _) => ConnectSelected();
+        list.MouseClick += MachineListMouseClick;
         list.MouseDown += SelectMachineForContextMenu;
         list.MouseMove += ShowMachineTooltip;
         list.MouseLeave += (_, _) => HideMachineTooltip();
         list.MouseWheel += (_, _) => _machineListHost.Invalidate();
+    }
+
+    private void MachineListMouseClick(object? sender, MouseEventArgs e)
+    {
+        if (sender is not ListBox list || !ReferenceEquals(list, _connectedMachineList) || e.Button != MouseButtons.Left)
+        {
+            return;
+        }
+
+        var index = list.IndexFromPoint(e.Location);
+        if (index < 0 || index >= list.Items.Count || list.Items[index] is not MachineEntry machine)
+        {
+            return;
+        }
+
+        var itemBounds = Rectangle.Inflate(list.GetItemRectangle(index), -2, -4);
+        if (!ClipboardToggleBounds(itemBounds).Contains(e.Location))
+        {
+            return;
+        }
+
+        ToggleClipboardForConnectedMachine(machine);
     }
 
     private void DrawConnectedSeparator(object? sender, PaintEventArgs e)
@@ -723,7 +746,11 @@ public sealed class MainForm : Form
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
 
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
-        var badge = new Rectangle(bounds.Right - 48, bounds.Top + 16, 38, 18);
+        var showClipboardToggle = ReferenceEquals(list, _connectedMachineList) && isConnected;
+        var clipboardButton = ClipboardToggleBounds(bounds);
+        var badge = showClipboardToggle
+            ? new Rectangle(clipboardButton.Left - 46, bounds.Top + 16, 38, 18)
+            : new Rectangle(bounds.Right - 48, bounds.Top + 16, 38, 18);
         var textRight = isConnected ? badge.Left - 8 : bounds.Right - 10;
         var textWidth = Math.Max(32, textRight - (bounds.Left + 48));
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
@@ -747,6 +774,43 @@ public sealed class MainForm : Form
         {
             e.Graphics.FillRoundedRectangle(badgeBackground, badge, 6);
             e.Graphics.DrawString("LIVE", badgeFont, badgeText, badge.Left + 7, badge.Top + 3);
+            if (showClipboardToggle)
+            {
+                DrawClipboardToggle(e.Graphics, clipboardButton, EffectiveRedirectSettings(machine).Clipboard);
+            }
+        }
+    }
+
+    private static Rectangle ClipboardToggleBounds(Rectangle itemBounds)
+    {
+        return new Rectangle(itemBounds.Right - 42, itemBounds.Top + 14, 30, 24);
+    }
+
+    private static void DrawClipboardToggle(Graphics graphics, Rectangle bounds, bool enabled)
+    {
+        using var background = new SolidBrush(enabled ? Color.FromArgb(220, 252, 231) : Color.FromArgb(51, 65, 85));
+        using var border = new Pen(enabled ? Color.FromArgb(34, 197, 94) : Color.FromArgb(100, 116, 139), 1);
+        using var glyph = new Pen(enabled ? Color.FromArgb(21, 128, 61) : Color.FromArgb(203, 213, 225), 1.6f)
+        {
+            StartCap = System.Drawing.Drawing2D.LineCap.Round,
+            EndCap = System.Drawing.Drawing2D.LineCap.Round,
+        };
+        graphics.FillRoundedRectangle(background, bounds, 7);
+        graphics.DrawRoundedRectangle(border, bounds, 7);
+
+        var paper = new Rectangle(bounds.Left + 9, bounds.Top + 7, 12, 13);
+        graphics.DrawRoundedRectangle(glyph, paper, 2);
+        graphics.DrawLine(glyph, bounds.Left + 12, bounds.Top + 5, bounds.Left + 18, bounds.Top + 5);
+        graphics.DrawLine(glyph, bounds.Left + 12, bounds.Top + 10, bounds.Left + 18, bounds.Top + 10);
+        graphics.DrawLine(glyph, bounds.Left + 12, bounds.Top + 14, bounds.Left + 18, bounds.Top + 14);
+        if (!enabled)
+        {
+            using var slash = new Pen(Color.FromArgb(248, 113, 113), 2f)
+            {
+                StartCap = System.Drawing.Drawing2D.LineCap.Round,
+                EndCap = System.Drawing.Drawing2D.LineCap.Round,
+            };
+            graphics.DrawLine(slash, bounds.Left + 7, bounds.Bottom - 5, bounds.Right - 7, bounds.Top + 5);
         }
     }
 
@@ -1581,6 +1645,37 @@ public sealed class MainForm : Form
                 Brand.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
+        }
+    }
+
+    private void ToggleClipboardForConnectedMachine(MachineEntry machine)
+    {
+        var enabled = !EffectiveRedirectSettings(machine).Clipboard;
+        SetMachineClipboardRedirect(machine, enabled);
+        SelectMachine(machine.Id);
+        ReconnectMachine(machine);
+        _connectedMachineList.Invalidate();
+        _machineToolTip.SetToolTip(
+            _connectedMachineList,
+            $"Zwischenablage {(enabled ? "aktiviert" : "deaktiviert")} - Session wurde neu verbunden.");
+        _statusLabel.Text = $"Zwischenablage {(enabled ? "aktiv" : "aus")} fuer {machine.DisplayName}";
+    }
+
+    private void SetMachineClipboardRedirect(MachineEntry machine, bool enabled)
+    {
+        var target = machine.IsTemporary
+            ? _temporaryMachines.FirstOrDefault(item => item.Id == machine.Id)
+            : _data.Machines.FirstOrDefault(item => item.Id == machine.Id);
+        if (target is null)
+        {
+            return;
+        }
+
+        target.UseGlobalRedirectSettings = false;
+        target.RedirectClipboard = enabled;
+        if (!target.IsTemporary)
+        {
+            SaveData();
         }
     }
 

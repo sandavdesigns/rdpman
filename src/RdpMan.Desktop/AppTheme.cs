@@ -220,6 +220,12 @@ internal static class GraphicsExtensions
         graphics.FillPath(brush, path);
     }
 
+    public static void DrawRoundedRectangle(this Graphics graphics, Pen pen, Rectangle bounds, int radius)
+    {
+        using var path = RoundedRectangle(bounds, radius);
+        graphics.DrawPath(pen, path);
+    }
+
     private static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
     {
         var path = new GraphicsPath();

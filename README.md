@@ -42,7 +42,7 @@ You can also download the build from **Actions**:
 2. Open the latest **Build Windows App** run.
 3. Download the `RDPMan-<version>-win-x64` artifact.
 
-Tagged versions like `v0.1.37` also create a GitHub Release with the ZIP attached.
+Tagged versions like `v0.1.38` also create a GitHub Release with the ZIP attached.
 
 The build intentionally loads the Microsoft RDP ActiveX control at runtime from
 the Windows registry. This avoids generated COM wrapper files in CI while still
