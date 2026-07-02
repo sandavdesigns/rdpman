@@ -413,7 +413,10 @@ public sealed class MainForm : Form
 
     private void MachineListMouseClick(object? sender, MouseEventArgs e)
     {
-        if (sender is not ListBox list || !ReferenceEquals(list, _connectedMachineList) || e.Button != MouseButtons.Left)
+        if (sender is not ListBox list
+            || !ReferenceEquals(list, _connectedMachineList)
+            || !_data.ShowConnectedClipboardToggle
+            || e.Button != MouseButtons.Left)
         {
             return;
         }
@@ -746,7 +749,7 @@ public sealed class MainForm : Form
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
 
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 14, 24, 24);
-        var showClipboardToggle = ReferenceEquals(list, _connectedMachineList) && isConnected;
+        var showClipboardToggle = _data.ShowConnectedClipboardToggle && ReferenceEquals(list, _connectedMachineList) && isConnected;
         var clipboardButton = ClipboardToggleBounds(bounds);
         var badge = showClipboardToggle
             ? new Rectangle(clipboardButton.Left - 46, bounds.Top + 16, 38, 18)
@@ -1744,6 +1747,7 @@ public sealed class MainForm : Form
         {
             SaveData();
             RefreshMachineList();
+            _connectedMachineList.Invalidate();
         }
     }
 

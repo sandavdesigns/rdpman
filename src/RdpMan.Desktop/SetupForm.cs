@@ -20,6 +20,7 @@ public sealed class SetupForm : Form
     private readonly CheckBox _globalRedirectWebAuthn = new();
     private readonly CheckBox _rememberConnectedSessions = new();
     private readonly CheckBox _restoreConnectedSessionsOnStart = new();
+    private readonly CheckBox _showConnectedClipboardToggle = new();
     private readonly ListBox _autoReconnect = new();
     private readonly List<string> _previewNames = [];
 
@@ -189,6 +190,7 @@ public sealed class SetupForm : Form
         StyleCheckBox(_globalRedirectWebAuthn, "WebAuthn / Windows Hello erlauben");
         StyleCheckBox(_rememberConnectedSessions, "Verbundene Rechner beim Beenden merken");
         StyleCheckBox(_restoreConnectedSessionsOnStart, "Gemerkte Rechner beim Start automatisch verbinden");
+        StyleCheckBox(_showConnectedClipboardToggle, "Zwischenablage-Schalter bei verbundenen Rechnern anzeigen");
 
         _globalRedirectClipboard.Checked = _data.GlobalRedirectClipboard;
         _globalRedirectPrinters.Checked = _data.GlobalRedirectPrinters;
@@ -196,6 +198,7 @@ public sealed class SetupForm : Form
         _globalRedirectWebAuthn.Checked = _data.GlobalRedirectWebAuthn;
         _rememberConnectedSessions.Checked = _data.RememberConnectedSessions;
         _restoreConnectedSessionsOnStart.Checked = _data.RestoreConnectedSessionsOnStart;
+        _showConnectedClipboardToggle.Checked = _data.ShowConnectedClipboardToggle;
 
         _globalRedirectClipboard.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _globalRedirectPrinters.CheckedChanged += (_, _) => UpdateGlobalRedirects();
@@ -203,6 +206,7 @@ public sealed class SetupForm : Form
         _globalRedirectWebAuthn.CheckedChanged += (_, _) => UpdateGlobalRedirects();
         _rememberConnectedSessions.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
         _restoreConnectedSessionsOnStart.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
+        _showConnectedClipboardToggle.CheckedChanged += (_, _) => UpdateSessionMemoryOptions();
         _autoReconnect.Dock = DockStyle.Fill;
         _autoReconnect.BorderStyle = BorderStyle.None;
         _autoReconnect.BackColor = AppTheme.SurfaceAlt;
@@ -234,6 +238,7 @@ public sealed class SetupForm : Form
         };
         sessionOptions.Controls.Add(_rememberConnectedSessions);
         sessionOptions.Controls.Add(_restoreConnectedSessionsOnStart);
+        sessionOptions.Controls.Add(_showConnectedClipboardToggle);
 
         var autoReconnectActions = ActionRow(
             ("Entfernen", RemoveSelectedAutoReconnect, false),
@@ -394,6 +399,7 @@ public sealed class SetupForm : Form
     {
         _data.RememberConnectedSessions = _rememberConnectedSessions.Checked;
         _data.RestoreConnectedSessionsOnStart = _restoreConnectedSessionsOnStart.Checked;
+        _data.ShowConnectedClipboardToggle = _showConnectedClipboardToggle.Checked;
         if (!_data.RememberConnectedSessions)
         {
             _data.AutoReconnectMachineIds.Clear();

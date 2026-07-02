@@ -16,6 +16,7 @@ public sealed class AppData
     public bool GlobalRedirectWebAuthn { get; set; }
     public bool RememberConnectedSessions { get; set; } = true;
     public bool RestoreConnectedSessionsOnStart { get; set; } = true;
+    public bool ShowConnectedClipboardToggle { get; set; } = true;
     public bool SetupWizardCompleted { get; set; }
 }
 
