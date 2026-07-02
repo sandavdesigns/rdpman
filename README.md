@@ -32,12 +32,17 @@ RDPMan is a native Windows desktop application for managing and switching betwee
 GitHub Actions builds a Windows ZIP package on every push to `main`.
 
 1. Open the GitHub repository.
-2. Go to **Actions**.
-3. Open the latest **Build Windows App** run.
-4. Download the `RDPMan-win-x64` artifact.
-5. Extract the ZIP and start `RDPMan.exe`.
+2. Open the `builds/` folder.
+3. Download `RDPMan-latest-win-x64.zip` or the newest versioned ZIP.
+4. Extract the ZIP and start `RDPMan.exe`.
 
-Tagged versions like `v0.1.36` also create a GitHub Release with the ZIP attached.
+You can also download the build from **Actions**:
+
+1. Go to **Actions**.
+2. Open the latest **Build Windows App** run.
+3. Download the `RDPMan-<version>-win-x64` artifact.
+
+Tagged versions like `v0.1.37` also create a GitHub Release with the ZIP attached.
 
 The build intentionally loads the Microsoft RDP ActiveX control at runtime from
 the Windows registry. This avoids generated COM wrapper files in CI while still
