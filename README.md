@@ -1,6 +1,6 @@
-# Lord of the Pings
+# RDPMan
 
-Lord of the Pings is a native Windows desktop application for managing and switching between RDP sessions. It is intentionally not a browser app: the right side of the window hosts real Microsoft RDP ActiveX sessions so the application can switch between open machines like a classic RDP manager.
+RDPMan is a native Windows desktop application for managing and switching between RDP sessions. It is intentionally not a browser app: the right side of the window hosts real Microsoft RDP ActiveX sessions so the application can switch between open machines like a classic RDP manager.
 
 ## Features
 
@@ -34,10 +34,10 @@ GitHub Actions builds a Windows ZIP package on every push to `main`.
 1. Open the GitHub repository.
 2. Go to **Actions**.
 3. Open the latest **Build Windows App** run.
-4. Download the `LordOfThePings-win-x64` artifact.
-5. Extract the ZIP and start `LordOfThePings.exe`.
+4. Download the `RDPMan-win-x64` artifact.
+5. Extract the ZIP and start `RDPMan.exe`.
 
-Tagged versions like `v0.1.1` also create a GitHub Release with the ZIP attached.
+Tagged versions like `v0.1.36` also create a GitHub Release with the ZIP attached.
 
 The build intentionally loads the Microsoft RDP ActiveX control at runtime from
 the Windows registry. This avoids generated COM wrapper files in CI while still

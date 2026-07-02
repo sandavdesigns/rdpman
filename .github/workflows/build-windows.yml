@@ -36,7 +36,7 @@ jobs:
         run: |
           [xml]$project = Get-Content .\src\RdpMan.Desktop\RdpMan.Desktop.csproj
           $version = $project.Project.PropertyGroup.Version
-          "LOTP_VERSION=$version" >> $env:GITHUB_ENV
+          "RDPMAN_VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Publish win-x64
         run: >
@@ -46,24 +46,24 @@ jobs:
           --self-contained false
           -p:PublishSingleFile=false
           -p:PublishReadyToRun=false
-          --output .\artifacts\LordOfThePings-win-x64
+          --output .\artifacts\RDPMan-win-x64
 
       - name: Package zip
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path .\artifacts\zip | Out-Null
-          Compress-Archive -Path .\artifacts\LordOfThePings-win-x64\* -DestinationPath ".\artifacts\zip\LordOfThePings-$env:LOTP_VERSION-win-x64.zip" -Force
+          Compress-Archive -Path .\artifacts\RDPMan-win-x64\* -DestinationPath ".\artifacts\zip\RDPMan-$env:RDPMAN_VERSION-win-x64.zip" -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LordOfThePings-${{ env.LOTP_VERSION }}-win-x64
-          path: .\artifacts\zip\LordOfThePings-${{ env.LOTP_VERSION }}-win-x64.zip
+          name: RDPMan-${{ env.RDPMAN_VERSION }}-win-x64
+          path: .\artifacts\zip\RDPMan-${{ env.RDPMAN_VERSION }}-win-x64.zip
           if-no-files-found: error
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: .\artifacts\zip\LordOfThePings-${{ env.LOTP_VERSION }}-win-x64.zip
+          files: .\artifacts\zip\RDPMan-${{ env.RDPMAN_VERSION }}-win-x64.zip
           generate_release_notes: true

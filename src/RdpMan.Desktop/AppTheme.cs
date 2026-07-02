@@ -146,84 +146,47 @@ internal static class AppTheme
 
     public static void DrawLogo(Graphics graphics, Rectangle bounds)
     {
-#if KASTEN3000
-        DrawKastenLogo(graphics, bounds);
-#else
-        DrawPingLogo(graphics, bounds);
-#endif
+        DrawRdpManLogo(graphics, bounds);
     }
 
-    private static void DrawPingLogo(Graphics graphics, Rectangle bounds)
+    private static void DrawRdpManLogo(Graphics graphics, Rectangle bounds)
     {
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var background = new SolidBrush(SidebarAlt);
-        using var accent = new SolidBrush(Accent);
+        using var background = new SolidBrush(Color.FromArgb(15, 23, 42));
         using var green = new SolidBrush(Success);
-        using var gold = new SolidBrush(Color.FromArgb(250, 204, 21));
-        using var text = new SolidBrush(Color.White);
-        using var titleFont = new Font("Segoe UI Semibold", Math.Max(8, bounds.Height * 0.18f), FontStyle.Bold);
-        using var pingPen = new Pen(Color.FromArgb(147, 197, 253), Math.Max(2, bounds.Width / 26f));
-
-        graphics.FillRoundedRectangle(background, bounds, Math.Max(8, bounds.Width / 8));
-
-        var screen = Rectangle.Inflate(bounds, -bounds.Width / 6, -bounds.Height / 4);
-        screen.Height = bounds.Height / 3;
-        graphics.FillRoundedRectangle(accent, screen, Math.Max(4, bounds.Width / 18));
-
-        var crownY = bounds.Top + bounds.Height * 0.11f;
-        var crown = new[]
+        using var screenShell = new SolidBrush(Color.FromArgb(239, 246, 255));
+        using var screen = new SolidBrush(Color.FromArgb(15, 23, 42));
+        using var line = new Pen(Color.FromArgb(96, 165, 250), Math.Max(2, bounds.Width / 18f));
+        using var arrow = new Pen(green.Color, Math.Max(3, bounds.Width / 13f))
         {
-            new PointF(bounds.Left + bounds.Width * 0.34f, crownY + bounds.Height * 0.10f),
-            new PointF(bounds.Left + bounds.Width * 0.43f, crownY),
-            new PointF(bounds.Left + bounds.Width * 0.50f, crownY + bounds.Height * 0.10f),
-            new PointF(bounds.Left + bounds.Width * 0.58f, crownY),
-            new PointF(bounds.Left + bounds.Width * 0.67f, crownY + bounds.Height * 0.10f),
-            new PointF(bounds.Left + bounds.Width * 0.67f, crownY + bounds.Height * 0.18f),
-            new PointF(bounds.Left + bounds.Width * 0.34f, crownY + bounds.Height * 0.18f),
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round,
         };
-        graphics.FillPolygon(gold, crown);
-
-        var center = new PointF(bounds.Left + bounds.Width * 0.50f, bounds.Top + bounds.Height * 0.48f);
-        var radius = bounds.Width * 0.19f;
-        graphics.DrawArc(pingPen, center.X - radius, center.Y - radius, radius * 2, radius * 2, 215, 110);
-        graphics.FillEllipse(green, center.X - bounds.Width * 0.055f, center.Y - bounds.Width * 0.055f, bounds.Width * 0.11f, bounds.Width * 0.11f);
-
-        graphics.DrawString("PING", titleFont, text, bounds.Left + bounds.Width * 0.17f, bounds.Top + bounds.Height * 0.66f);
-    }
-
-    private static void DrawKastenLogo(Graphics graphics, Rectangle bounds)
-    {
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var background = new SolidBrush(Color.FromArgb(30, 24, 20));
-        using var crate = new SolidBrush(Color.FromArgb(180, 83, 9));
-        using var crateDark = new SolidBrush(Color.FromArgb(120, 53, 15));
-        using var bottle = new SolidBrush(Color.FromArgb(22, 101, 52));
-        using var cap = new SolidBrush(Color.FromArgb(250, 204, 21));
-        using var foam = new SolidBrush(Color.FromArgb(254, 243, 199));
-        using var text = new SolidBrush(Color.White);
-        using var titleFont = new Font("Segoe UI Semibold", Math.Max(7, bounds.Height * 0.16f), FontStyle.Bold);
 
         graphics.FillRoundedRectangle(background, bounds, Math.Max(8, bounds.Width / 8));
 
-        var crateRect = Rectangle.Inflate(bounds, -bounds.Width / 7, -bounds.Height / 4);
-        crateRect.Y += bounds.Height / 10;
-        crateRect.Height = bounds.Height / 3;
-        graphics.FillRoundedRectangle(crate, crateRect, Math.Max(4, bounds.Width / 18));
-        graphics.FillRectangle(crateDark, crateRect.Left + crateRect.Width / 10, crateRect.Top + crateRect.Height / 3, crateRect.Width * 4 / 5, Math.Max(4, crateRect.Height / 6));
+        var monitor = new Rectangle(bounds.Left + bounds.Width / 5, bounds.Top + bounds.Height / 5, bounds.Width * 3 / 5, bounds.Height * 9 / 20);
+        graphics.FillRoundedRectangle(screenShell, monitor, Math.Max(5, bounds.Width / 10));
+        var inner = Rectangle.Inflate(monitor, -bounds.Width / 13, -bounds.Height / 12);
+        graphics.FillRoundedRectangle(screen, inner, Math.Max(3, bounds.Width / 18));
+        graphics.DrawLine(line, inner.Left + inner.Width / 6, inner.Top + inner.Height / 3, inner.Left + inner.Width / 2, inner.Top + inner.Height / 3);
+        graphics.DrawLine(line, inner.Left + inner.Width / 6, inner.Top + inner.Height * 2 / 3, inner.Left + inner.Width * 2 / 5, inner.Top + inner.Height * 2 / 3);
 
-        var bottleWidth = Math.Max(4, bounds.Width / 10);
-        var bottleHeight = Math.Max(12, bounds.Height / 4);
-        var startX = bounds.Left + bounds.Width / 4;
-        for (var index = 0; index < 4; index++)
-        {
-            var x = startX + index * bounds.Width / 7;
-            var y = bounds.Top + bounds.Height / 4;
-            graphics.FillRoundedRectangle(bottle, new Rectangle(x, y, bottleWidth, bottleHeight), Math.Max(2, bottleWidth / 3));
-            graphics.FillRectangle(cap, x + bottleWidth / 5, y - Math.Max(2, bounds.Height / 24), bottleWidth * 3 / 5, Math.Max(2, bounds.Height / 20));
-            graphics.FillEllipse(foam, x + bottleWidth / 4, y + bottleHeight / 5, bottleWidth / 2, bottleWidth / 2);
-        }
+        var stand = new Rectangle(bounds.Left + bounds.Width * 43 / 100, monitor.Bottom - bounds.Height / 30, bounds.Width * 14 / 100, bounds.Height / 6);
+        graphics.FillRectangle(screenShell, stand);
+        var baseRect = new Rectangle(bounds.Left + bounds.Width / 4, bounds.Top + bounds.Height * 70 / 100, bounds.Width / 2, bounds.Height / 8);
+        graphics.FillRoundedRectangle(screenShell, baseRect, Math.Max(4, bounds.Width / 14));
 
-        graphics.DrawString("K3000", titleFont, text, bounds.Left + bounds.Width * 0.13f, bounds.Top + bounds.Height * 0.66f);
+        var arrowY = bounds.Top + bounds.Height * 39 / 100;
+        graphics.DrawLine(arrow, bounds.Left + bounds.Width * 61 / 100, arrowY, bounds.Left + bounds.Width * 79 / 100, arrowY);
+        graphics.DrawLine(arrow, bounds.Left + bounds.Width * 71 / 100, arrowY - bounds.Height / 11, bounds.Left + bounds.Width * 80 / 100, arrowY);
+        graphics.DrawLine(arrow, bounds.Left + bounds.Width * 71 / 100, arrowY + bounds.Height / 11, bounds.Left + bounds.Width * 80 / 100, arrowY);
+
+        var dot = new Rectangle(bounds.Left + bounds.Width * 66 / 100, bounds.Top + bounds.Height * 64 / 100, bounds.Width / 6, bounds.Width / 6);
+        using var dotInner = new SolidBrush(Color.FromArgb(220, 252, 231));
+        graphics.FillEllipse(green, dot);
+        graphics.FillEllipse(dotInner, Rectangle.Inflate(dot, -dot.Width / 4, -dot.Height / 4));
     }
 
     private static Icon LoadAppIcon()
