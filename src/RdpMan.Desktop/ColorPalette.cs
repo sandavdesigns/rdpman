@@ -10,7 +10,7 @@ internal static class ColorPalette
     public static readonly ColorChoice[] Choices =
     [
         new("blue", "Blau"),
-        new("green", "Gruen"),
+        new("green", "Grün"),
         new("amber", "Gelb"),
         new("red", "Rot"),
         new("violet", "Violett"),

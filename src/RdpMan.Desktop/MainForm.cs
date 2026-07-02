@@ -276,9 +276,9 @@ public sealed class MainForm : Form
 
         var quickActions = SidebarButtonGrid(4, height: 52, topPadding: 2, bottomPadding: 8);
         var add = SidebarActionButton("+", "Neuen Rechner anlegen", primary: true, (_, _) => AddMachine());
-        var edit = SidebarActionButton("✎", "Ausgewaehlten Rechner bearbeiten", primary: false, (_, _) => EditMachine());
+        var edit = SidebarActionButton("✎", "Ausgewählten Rechner bearbeiten", primary: false, (_, _) => EditMachine());
         var adHoc = SidebarActionButton("▶", "Ad-hoc-Verbindung starten", primary: false, (_, _) => ConnectAdHoc());
-        var setup = SidebarActionButton("⚙", "Setup oeffnen", primary: false, (_, _) => OpenSetup());
+        var setup = SidebarActionButton("⚙", "Setup öffnen", primary: false, (_, _) => OpenSetup());
         AddSidebarButton(quickActions, add, 0);
         AddSidebarButton(quickActions, edit, 1);
         AddSidebarButton(quickActions, adHoc, 2);
@@ -1661,7 +1661,7 @@ public sealed class MainForm : Form
         _machineToolTip.SetToolTip(
             _connectedMachineList,
             $"Zwischenablage {(enabled ? "aktiviert" : "deaktiviert")} - Session wurde neu verbunden.");
-        _statusLabel.Text = $"Zwischenablage {(enabled ? "aktiv" : "aus")} fuer {machine.DisplayName}";
+        _statusLabel.Text = $"Zwischenablage {(enabled ? "aktiv" : "aus")} für {machine.DisplayName}";
     }
 
     private void SetMachineClipboardRedirect(MachineEntry machine, bool enabled)
@@ -1793,7 +1793,7 @@ public sealed class MainForm : Form
 
         var result = MessageBox.Show(
             this,
-            "Das Backup ersetzt die aktuelle Maschinen- und Zugangsliste. Bestehende RDP-Sitzungen werden getrennt.\n\nPasswoerter sind mit Windows DPAPI geschuetzt und muessen auf einem anderen Windows-Benutzer oder Rechner eventuell neu gesetzt werden.",
+            "Das Backup ersetzt die aktuelle Maschinen- und Zugangsliste. Bestehende RDP-Sitzungen werden getrennt.\n\nPasswörter sind mit Windows DPAPI geschützt und müssen auf einem anderen Windows-Benutzer oder Rechner eventuell neu gesetzt werden.",
             "Backup wiederherstellen",
             MessageBoxButtons.OKCancel,
             MessageBoxIcon.Warning);

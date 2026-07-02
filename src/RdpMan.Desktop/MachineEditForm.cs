@@ -45,7 +45,7 @@ public sealed class MachineEditForm : Form
                 RedirectWebAuthn = machine.RedirectWebAuthn,
             };
 
-        Text = machine is null ? "Maschine hinzufuegen" : "Maschine bearbeiten";
+        Text = machine is null ? "Maschine hinzufügen" : "Maschine bearbeiten";
         Width = 600;
         Height = 840;
         MinimumSize = new Size(560, 720);

@@ -22,7 +22,7 @@ public sealed class GroupEditForm : Form
                 CredentialProfileId = group.CredentialProfileId,
             };
 
-        Text = group is null ? "Gruppe hinzufuegen" : "Gruppe bearbeiten";
+        Text = group is null ? "Gruppe hinzufügen" : "Gruppe bearbeiten";
         Width = 520;
         Height = 430;
         MinimumSize = new Size(520, 410);
@@ -69,7 +69,7 @@ public sealed class GroupEditForm : Form
         _credential.FlatStyle = FlatStyle.Flat;
         AppTheme.StyleInput(_credential);
 
-        layout.Controls.Add(Field("Name", _name, "z.B. Server, CNC, Buero"), 0, 0);
+        layout.Controls.Add(Field("Name", _name, "z.B. Server, CNC, Büro"), 0, 0);
         layout.Controls.Add(Field("Farbe", _color), 0, 1);
         layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 2);
 

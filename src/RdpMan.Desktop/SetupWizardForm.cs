@@ -19,9 +19,9 @@ public sealed class SetupWizardForm : Form
         _data = data;
 
         Text = $"{Brand.AppName} einrichten";
-        Width = 760;
-        Height = 620;
-        MinimumSize = new Size(680, 540);
+        Width = 820;
+        Height = 660;
+        MinimumSize = new Size(720, 580);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -45,7 +45,7 @@ public sealed class SetupWizardForm : Form
         };
         var subtitle = new Label
         {
-            Text = "Standard-Zugang optional anlegen und Rechner direkt aus einer AD-CSV uebernehmen.",
+            Text = "Standard-Zugang optional anlegen und Rechner direkt aus einer AD-CSV übernehmen.",
             Dock = DockStyle.Top,
             Height = 28,
             ForeColor = AppTheme.MutedText,
@@ -78,7 +78,7 @@ public sealed class SetupWizardForm : Form
     private TabPage CredentialPage()
     {
         var page = Page("Zugang");
-        var intro = Info("Wenn du hier einen Zugang eintraegst, wird er als globaler Standard fuer neue Verbindungen verwendet. Du kannst den Schritt leer lassen.");
+        var intro = Info("Wenn du hier einen Zugang einträgst, wird er als globaler Standard für neue Verbindungen verwendet. Du kannst den Schritt leer lassen.");
 
         _label.PlaceholderText = "z.B. Standard";
         _domain.PlaceholderText = "optional";
@@ -101,7 +101,7 @@ public sealed class SetupWizardForm : Form
     private TabPage CsvPage()
     {
         var page = Page("CSV Import");
-        var intro = Info("CSV oder TXT aus dem AD-Export waehlen. Bekannte Spalten wie DNSHostName, ComputerName, Name, CN oder sAMAccountName werden erkannt.");
+        var intro = Info("CSV oder TXT aus dem AD-Export wählen. Bekannte Spalten wie DNSHostName, ComputerName, Name, CN oder sAMAccountName werden erkannt.");
 
         _preview.Dock = DockStyle.Fill;
         _preview.BorderStyle = BorderStyle.None;
@@ -112,7 +112,7 @@ public sealed class SetupWizardForm : Form
         _csvStatus.Height = 28;
         _csvStatus.ForeColor = AppTheme.MutedText;
         _csvStatus.Font = AppTheme.SmallFont;
-        _csvStatus.Text = "Noch keine CSV ausgewaehlt.";
+        _csvStatus.Text = "Noch keine CSV ausgewählt.";
 
         var actions = new FlowLayoutPanel
         {
@@ -123,7 +123,7 @@ public sealed class SetupWizardForm : Form
             BackColor = AppTheme.Surface,
             Padding = new Padding(0, 10, 0, 6),
         };
-        var choose = AppTheme.Button("CSV waehlen", primary: true);
+        var choose = AppTheme.Button("CSV wählen", primary: true);
         var clear = AppTheme.Button("Auswahl leeren");
         choose.Width = 128;
         clear.Width = 128;
@@ -187,7 +187,7 @@ public sealed class SetupWizardForm : Form
         }
 
         _csvStatus.Text = _csvNames.Count == 0
-            ? "Noch keine Rechner ausgewaehlt."
+            ? "Noch keine Rechner ausgewählt."
             : $"{_csvNames.Count} Rechner bereit zum Import.";
     }
 

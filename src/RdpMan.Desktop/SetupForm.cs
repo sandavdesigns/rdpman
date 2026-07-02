@@ -33,9 +33,9 @@ public sealed class SetupForm : Form
         _importBackup = importBackup;
 
         Text = "Setup";
-        Width = 880;
-        Height = 700;
-        MinimumSize = new Size(780, 640);
+        Width = 960;
+        Height = 760;
+        MinimumSize = new Size(840, 680);
         AppTheme.ApplyWindow(this);
 
         BuildLayout();
@@ -91,7 +91,7 @@ public sealed class SetupForm : Form
 
     private TabPage CredentialsTab()
     {
-        var page = Page("Zugaenge");
+        var page = Page("Zugänge");
         _credentials.Dock = DockStyle.Fill;
         _credentials.BorderStyle = BorderStyle.None;
         _credentials.BackColor = AppTheme.SurfaceAlt;
@@ -178,8 +178,8 @@ public sealed class SetupForm : Form
         var info = new Label
         {
             Dock = DockStyle.Top,
-            Height = 34,
-            Text = "Diese Freigaben gelten fuer neue Rechner und fuer Eintraege, die globale Freigaben verwenden.",
+            Height = 46,
+            Text = "Diese Freigaben gelten für neue Rechner und für Einträge, die globale Freigaben verwenden.",
             ForeColor = AppTheme.MutedText,
             Font = AppTheme.UiFont,
         };
@@ -216,7 +216,7 @@ public sealed class SetupForm : Form
         var options = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 62,
+            Height = 86,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             BackColor = AppTheme.Surface,
@@ -230,7 +230,7 @@ public sealed class SetupForm : Form
         var sessionOptions = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 42,
+            Height = 86,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             BackColor = AppTheme.Surface,
@@ -247,8 +247,8 @@ public sealed class SetupForm : Form
         var autoReconnectInfo = new Label
         {
             Dock = DockStyle.Top,
-            Height = 26,
-            Text = "Gemerkte Wiederverbindungen. Fehlende Rechner koennen hier entfernt werden.",
+            Height = 34,
+            Text = "Gemerkte Wiederverbindungen. Fehlende Rechner können hier entfernt werden.",
             ForeColor = AppTheme.MutedText,
             Font = AppTheme.SmallFont,
         };
@@ -685,7 +685,7 @@ public sealed class SetupForm : Form
         {
             DataChanged = true;
         }
-        MessageBox.Show(this, $"{imported} Rechner uebernommen.", title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(this, $"{imported} Rechner übernommen.", title, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void AddPreviewName(string? value)
@@ -758,6 +758,7 @@ public sealed class SetupForm : Form
         {
             BackColor = AppTheme.Surface,
             Padding = new Padding(16),
+            AutoScroll = true,
         };
     }
 
