@@ -274,15 +274,17 @@ public sealed class MainForm : Form
         header.Controls.Add(subtitle);
         header.Controls.Add(_machineCount);
 
-        var quickActions = SidebarButtonGrid(4, height: 52, topPadding: 2, bottomPadding: 8);
+        var quickActions = SidebarButtonGrid(5, height: 52, topPadding: 2, bottomPadding: 8);
         var add = SidebarActionButton("+", "Neuen Rechner anlegen", primary: true, (_, _) => AddMachine());
         var edit = SidebarActionButton("✎", "Ausgewählten Rechner bearbeiten", primary: false, (_, _) => EditMachine());
         var adHoc = SidebarActionButton("▶", "Ad-hoc-Verbindung starten", primary: false, (_, _) => ConnectAdHoc());
+        var logOffAll = SidebarActionButton("⏻", "Alle verbundenen Rechner abmelden", primary: false, (_, _) => LogOffAllConnected());
         var setup = SidebarActionButton("⚙", "Setup öffnen", primary: false, (_, _) => OpenSetup());
         AddSidebarButton(quickActions, add, 0);
         AddSidebarButton(quickActions, edit, 1);
         AddSidebarButton(quickActions, adHoc, 2);
-        AddSidebarButton(quickActions, setup, 3);
+        AddSidebarButton(quickActions, logOffAll, 3);
+        AddSidebarButton(quickActions, setup, 4);
 
         _search.PlaceholderText = "Suchen...";
         _search.BorderStyle = BorderStyle.None;
@@ -489,7 +491,8 @@ public sealed class MainForm : Form
         var connect = _machineMenu.Items.Add("Connect", null, (_, _) => ConnectSelected());
         var connectAs = _machineMenu.Items.Add("Verbinden als...", null, (_, _) => ConnectSelectedAs());
         _machineMenu.Items.Add(new ToolStripSeparator());
-        var disconnect = _machineMenu.Items.Add("Abmelden", null, (_, _) => DisconnectSelected());
+        var logOff = _machineMenu.Items.Add("Abmelden", null, (_, _) => LogOffSelected());
+        var disconnect = _machineMenu.Items.Add("Nur trennen", null, (_, _) => DisconnectSelected());
         var favorite = _machineMenu.Items.Add("Favorit umschalten", null, (_, _) => ToggleFavoriteSelected());
         var edit = _machineMenu.Items.Add("Bearbeiten", null, (_, _) => EditMachine());
         var delete = _machineMenu.Items.Add("Eintrag entfernen", null, (_, _) => DeleteMachine());
@@ -509,6 +512,7 @@ public sealed class MainForm : Form
             var isConnected = IsSessionConnected(machine.Id);
             connect.Enabled = true;
             connectAs.Enabled = true;
+            logOff.Enabled = isConnected;
             disconnect.Enabled = isConnected;
             favorite.Enabled = !machine.IsTemporary;
             edit.Enabled = !machine.IsTemporary;
@@ -1617,6 +1621,13 @@ public sealed class MainForm : Form
         }
     }
 
+    private void CloseLocalSession(Guid machineId)
+    {
+        DisposeSession(machineId);
+        ForgetSession(machineId);
+        RemoveTemporaryMachine(machineId);
+    }
+
     private void ReconnectSelected()
     {
         var machine = SelectedMachine();
@@ -1685,21 +1696,120 @@ public sealed class MainForm : Form
     private void DisconnectSelected()
     {
         var machine = SelectedMachine();
+        if (machine is null || !_sessions.ContainsKey(machine.Id))
+        {
+            return;
+        }
+
+        CloseLocalSession(machine.Id);
+        ShowSelectedSession();
+        _machineList.Invalidate();
+        _connectedMachineList.Invalidate();
+        _statusLabel.Text = $"Getrennt: {machine.DisplayName}";
+    }
+
+    private void LogOffSelected()
+    {
+        var machine = SelectedMachine();
         if (machine is null || !_sessions.TryGetValue(machine.Id, out var session))
         {
             return;
         }
 
-        session.Dispose();
-        _sessions.Remove(machine.Id);
-        _sessionStartedAt.Remove(machine.Id);
-        _sessionShowErrors.Remove(machine.Id);
-        _sessionWasConnected.Remove(machine.Id);
-        ForgetSession(machine.Id);
-        RemoveTemporaryMachine(machine.Id);
+        var result = MessageBox.Show(
+            this,
+            $"Windows-Sitzung auf \"{machine.DisplayName}\" wirklich abmelden?\n\nDas beendet laufende Programme in dieser Remote-Sitzung.",
+            "Abmelden",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (result != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var loggedOff = RemoteLogoffService.LogOff(session.Machine, session.Credential);
+            CloseLocalSession(machine.Id);
+            ShowSelectedSession();
+            RefreshMachineList();
+            SelectMachine(machine.Id);
+            _machineList.Invalidate();
+            _connectedMachineList.Invalidate();
+            _statusLabel.Text = $"Abgemeldet: {machine.DisplayName}";
+            if (loggedOff > 1)
+            {
+                MessageBox.Show(this, $"{loggedOff} Sitzungen auf \"{machine.DisplayName}\" wurden abgemeldet.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Abmelden fehlgeschlagen: {machine.DisplayName}";
+            MessageBox.Show(
+                this,
+                $"Die Windows-Sitzung auf \"{machine.DisplayName}\" konnte nicht abgemeldet werden.\n\n{ex.Message}\n\nHinweis: Remote-Abmelden benötigt ausreichende Rechte auf dem Zielserver und erreichbare Terminaldienste.",
+                Brand.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void LogOffAllConnected()
+    {
+        SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
+        var sessions = _sessions
+            .Where(item => item.Value.IsConnected)
+            .Select(item => (MachineId: item.Key, Session: item.Value))
+            .ToList();
+
+        if (sessions.Count == 0)
+        {
+            _statusLabel.Text = "Keine verbundenen Rechner zum Abmelden";
+            return;
+        }
+
+        var result = MessageBox.Show(
+            this,
+            $"Alle {sessions.Count} verbundenen Windows-Sitzungen wirklich abmelden?\n\nDas beendet laufende Programme in diesen Remote-Sitzungen.",
+            "Alle abmelden",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (result != DialogResult.Yes)
+        {
+            return;
+        }
+
+        var loggedOffMachines = 0;
+        var failed = new List<string>();
+        foreach (var (machineId, session) in sessions)
+        {
+            try
+            {
+                RemoteLogoffService.LogOff(session.Machine, session.Credential);
+                CloseLocalSession(machineId);
+                loggedOffMachines++;
+            }
+            catch (Exception ex)
+            {
+                failed.Add($"{session.Machine.DisplayName}: {ex.Message}");
+            }
+        }
+
+        RefreshMachineList();
         ShowSelectedSession();
         _machineList.Invalidate();
-        _statusLabel.Text = $"Getrennt: {machine.DisplayName}";
+        _connectedMachineList.Invalidate();
+        _statusLabel.Text = $"Abgemeldet: {loggedOffMachines} von {sessions.Count}";
+
+        if (failed.Count > 0)
+        {
+            MessageBox.Show(
+                this,
+                $"Abgemeldet: {loggedOffMachines} von {sessions.Count}\n\nFehlgeschlagen:\n{string.Join(Environment.NewLine, failed)}",
+                Brand.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
     }
 
     private void ToggleFavoriteSelected()

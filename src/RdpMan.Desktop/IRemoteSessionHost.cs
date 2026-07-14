@@ -3,6 +3,7 @@ namespace RdpMan.Desktop;
 public interface IRemoteSessionHost : IDisposable
 {
     MachineEntry Machine { get; }
+    CredentialProfile? Credential { get; }
     Control Control { get; }
     bool IsConnected { get; }
     void Connect();
@@ -10,4 +11,3 @@ public interface IRemoteSessionHost : IDisposable
     void Disconnect();
     void ResizeToHost();
 }
-
