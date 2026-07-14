@@ -9,6 +9,5 @@ public interface IRemoteSessionHost : IDisposable
     void Connect();
     void Reconnect();
     void Disconnect();
-    bool TryRequestInteractiveLogOff();
     void ResizeToHost();
 }

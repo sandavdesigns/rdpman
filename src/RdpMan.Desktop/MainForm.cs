@@ -1727,7 +1727,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (TryLogOffSession(machine.Id, session, allowInteractiveFallback: true, out var detail, out var error))
+        if (TryLogOffSession(machine.Id, session, out var detail, out var error))
         {
             ShowSelectedSession();
             RefreshMachineList();
@@ -1741,7 +1741,7 @@ public sealed class MainForm : Form
         _statusLabel.Text = $"Abmelden fehlgeschlagen: {machine.DisplayName}";
         MessageBox.Show(
             this,
-            $"Die Windows-Sitzung auf \"{machine.DisplayName}\" konnte nicht abgemeldet werden.\n\n{error}\n\nRDPMan hat zuerst das Remote-Abmelden über Windows versucht und danach den Abmeldebefehl direkt in der sichtbaren RDP-Sitzung.",
+            $"Die Windows-Sitzung auf \"{machine.DisplayName}\" konnte nicht abgemeldet werden.\n\n{error}\n\nRDPMan sendet keine Tastaturbefehle mehr an die Sitzung. Das Abmelden läuft nur über Windows-Remote-APIs.",
             Brand.AppName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
@@ -1776,7 +1776,7 @@ public sealed class MainForm : Form
         var failed = new List<string>();
         foreach (var (machineId, session) in sessions)
         {
-            if (TryLogOffSession(machineId, session, allowInteractiveFallback: true, out _, out var error))
+            if (TryLogOffSession(machineId, session, out _, out var error))
             {
                 loggedOffMachines++;
                 continue;
@@ -1802,7 +1802,7 @@ public sealed class MainForm : Form
         }
     }
 
-    private bool TryLogOffSession(Guid machineId, IRemoteSessionHost session, bool allowInteractiveFallback, out string detail, out string error)
+    private bool TryLogOffSession(Guid machineId, IRemoteSessionHost session, out string detail, out string error)
     {
         detail = "";
         error = "";
@@ -1821,32 +1821,7 @@ public sealed class MainForm : Form
             error = remoteException.Message;
         }
 
-        if (!allowInteractiveFallback)
-        {
-            return false;
-        }
-
-        try
-        {
-            SelectMachine(machineId);
-            ShowSessionControl(session);
-            Application.DoEvents();
-            if (!session.TryRequestInteractiveLogOff())
-            {
-                error = $"{error}{Environment.NewLine}Interaktiver Abmeldeversuch konnte nicht an die RDP-Sitzung gesendet werden.";
-                return false;
-            }
-
-            Thread.Sleep(500);
-            CloseLocalSession(machineId);
-            detail = $"Abmeldung in Sitzung gestartet: {session.Machine.DisplayName}";
-            return true;
-        }
-        catch (Exception interactiveException)
-        {
-            error = $"{error}{Environment.NewLine}{interactiveException.Message}";
-            return false;
-        }
+        return false;
     }
 
     private void ToggleFavoriteSelected()

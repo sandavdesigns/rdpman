@@ -59,31 +59,6 @@ public sealed class RdpSessionHost : IRemoteSessionHost
         }
     }
 
-    public bool TryRequestInteractiveLogOff()
-    {
-        if (!IsConnected)
-        {
-            return false;
-        }
-
-        try
-        {
-            ActiveXControl.Focus();
-            ActiveXControl.Select();
-            Application.DoEvents();
-            SendKeys.SendWait("^{ESC}");
-            Thread.Sleep(250);
-            SendKeys.SendWait("logoff");
-            Thread.Sleep(100);
-            SendKeys.SendWait("{ENTER}");
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public void ResizeToHost()
     {
         if (ActiveXControl.Parent is null)
@@ -127,11 +102,9 @@ public sealed class RdpSessionHost : IRemoteSessionHost
 
         var advancedSettings = GetAdvancedSettings(ocx);
         var advancedSettings2 = GetProperty(ocx, "AdvancedSettings2") ?? advancedSettings;
-        var securedSettings = GetProperty(ocx, "SecuredSettings");
         SetProperty(advancedSettings, "EnableCredSspSupport", true);
         SetProperty(advancedSettings, "AuthenticationLevel", 0);
         SetProperty(advancedSettings2, "SmartSizing", true);
-        SetProperty(securedSettings, "KeyboardHookMode", 2);
         SetProperty(advancedSettings, "RedirectClipboard", Machine.RedirectClipboard);
         SetProperty(advancedSettings, "RedirectPrinters", Machine.RedirectPrinters);
         SetProperty(advancedSettings, "RedirectSmartCards", Machine.RedirectSmartCards);

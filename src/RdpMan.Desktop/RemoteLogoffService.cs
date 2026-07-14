@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Security.Principal;
 
 namespace RdpMan.Desktop;
 
@@ -22,6 +24,11 @@ public static class RemoteLogoffService
             throw new InvalidOperationException("Kein Benutzer für die Abmeldung ermittelbar.");
         }
 
+        return RunWithCredential(credential, () => LogOff(host, targetUser, targetDomain, targetUserAlias));
+    }
+
+    private static int LogOff(string host, string targetUser, string targetDomain, string targetUserAlias)
+    {
         var server = WTSOpenServer(host);
         if (server == IntPtr.Zero)
         {
@@ -36,6 +43,55 @@ public static class RemoteLogoffService
         {
             WTSCloseServer(server);
         }
+    }
+
+    private static T RunWithCredential<T>(CredentialProfile? credential, Func<T> action)
+    {
+        if (credential is null || string.IsNullOrWhiteSpace(credential.Username) || string.IsNullOrWhiteSpace(credential.ProtectedPassword))
+        {
+            return action();
+        }
+
+        var (username, domain) = LogonIdentity(credential);
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return action();
+        }
+
+        var password = CredentialVault.Unprotect(credential.ProtectedPassword);
+        if (!LogonUser(
+            username,
+            string.IsNullOrWhiteSpace(domain) ? null : domain,
+            password,
+            Logon32LogonNewCredentials,
+            Logon32ProviderWinnt50,
+            out var token))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Remote-Abmeldung mit den gespeicherten Zugangsdaten für \"{credential.DisplayName}\" fehlgeschlagen.");
+        }
+
+        using (token)
+        {
+            return WindowsIdentity.RunImpersonated(token, action);
+        }
+    }
+
+    private static (string User, string Domain) LogonIdentity(CredentialProfile credential)
+    {
+        var username = credential.Username.Trim();
+        var domain = credential.Domain.Trim();
+
+        var slashIndex = username.IndexOf('\\');
+        if (slashIndex > 0 && slashIndex < username.Length - 1)
+        {
+            if (string.IsNullOrWhiteSpace(domain))
+            {
+                domain = username[..slashIndex];
+            }
+            username = username[(slashIndex + 1)..];
+        }
+
+        return (username, domain);
     }
 
     private static (string User, string Domain, string Alias) TargetIdentity(CredentialProfile? credential)
@@ -184,6 +240,18 @@ public static class RemoteLogoffService
 
     [DllImport("wtsapi32.dll")]
     private static extern void WTSFreeMemory(IntPtr memory);
+
+    private const int Logon32LogonNewCredentials = 9;
+    private const int Logon32ProviderWinnt50 = 3;
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool LogonUser(
+        string username,
+        string? domain,
+        string password,
+        int logonType,
+        int logonProvider,
+        out SafeAccessTokenHandle token);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct WtsSessionInfo

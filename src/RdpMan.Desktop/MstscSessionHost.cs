@@ -123,31 +123,6 @@ public sealed class MstscSessionHost : IRemoteSessionHost
         _windowHandle = IntPtr.Zero;
     }
 
-    public bool TryRequestInteractiveLogOff()
-    {
-        if (!IsConnected || _windowHandle == IntPtr.Zero)
-        {
-            return false;
-        }
-
-        try
-        {
-            SetForegroundWindow(_windowHandle);
-            Control.Focus();
-            Application.DoEvents();
-            SendKeys.SendWait("^{ESC}");
-            Thread.Sleep(250);
-            SendKeys.SendWait("logoff");
-            Thread.Sleep(100);
-            SendKeys.SendWait("{ENTER}");
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public void ResizeToHost()
     {
         if (_windowHandle == IntPtr.Zero)
@@ -410,9 +385,6 @@ public sealed class MstscSessionHost : IRemoteSessionHost
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
     private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
