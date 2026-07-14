@@ -1774,14 +1774,31 @@ public sealed class MainForm : Form
 
         var loggedOffMachines = 0;
         var failed = new List<string>();
+        var processedOperations = new Dictionary<string, LogOffOperationResult>(StringComparer.OrdinalIgnoreCase);
         foreach (var (machineId, session) in sessions)
         {
+            var operationKey = RemoteLogoffService.OperationKey(session.Machine, session.Credential);
+            if (processedOperations.TryGetValue(operationKey, out var previousOperation))
+            {
+                if (previousOperation.Success)
+                {
+                    CloseLocalSession(machineId);
+                    loggedOffMachines++;
+                    continue;
+                }
+
+                failed.Add($"{session.Machine.DisplayName}: {previousOperation.Error}");
+                continue;
+            }
+
             if (TryLogOffSession(machineId, session, out _, out var error))
             {
+                processedOperations[operationKey] = new LogOffOperationResult(true, "");
                 loggedOffMachines++;
                 continue;
             }
 
+            processedOperations[operationKey] = new LogOffOperationResult(false, error);
             failed.Add($"{session.Machine.DisplayName}: {error}");
         }
 
@@ -1823,6 +1840,8 @@ public sealed class MainForm : Form
 
         return false;
     }
+
+    private sealed record LogOffOperationResult(bool Success, string Error);
 
     private void ToggleFavoriteSelected()
     {

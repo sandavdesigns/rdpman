@@ -9,6 +9,16 @@ namespace RdpMan.Desktop;
 [SupportedOSPlatform("windows")]
 public static class RemoteLogoffService
 {
+    public static string OperationKey(MachineEntry machine, CredentialProfile? credential)
+    {
+        var host = RdpConnectionProfile.ConnectionTargetHost(machine);
+        var (user, domain, alias) = TargetIdentity(credential);
+        var identity = !string.IsNullOrWhiteSpace(alias)
+            ? alias
+            : string.IsNullOrWhiteSpace(domain) ? user : $@"{domain}\{user}";
+        return $"{host.Trim().ToUpperInvariant()}|{identity.Trim().ToUpperInvariant()}";
+    }
+
     public static int LogOff(MachineEntry machine, CredentialProfile? credential)
     {
         var host = RdpConnectionProfile.ConnectionTargetHost(machine);
