@@ -1727,31 +1727,24 @@ public sealed class MainForm : Form
             return;
         }
 
-        try
+        if (TryLogOffSession(machine.Id, session, allowInteractiveFallback: true, out var detail, out var error))
         {
-            var loggedOff = RemoteLogoffService.LogOff(session.Machine, session.Credential);
-            CloseLocalSession(machine.Id);
             ShowSelectedSession();
             RefreshMachineList();
             SelectMachine(machine.Id);
             _machineList.Invalidate();
             _connectedMachineList.Invalidate();
-            _statusLabel.Text = $"Abgemeldet: {machine.DisplayName}";
-            if (loggedOff > 1)
-            {
-                MessageBox.Show(this, $"{loggedOff} Sitzungen auf \"{machine.DisplayName}\" wurden abgemeldet.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            _statusLabel.Text = detail.Length == 0 ? $"Abgemeldet: {machine.DisplayName}" : detail;
+            return;
         }
-        catch (Exception ex)
-        {
-            _statusLabel.Text = $"Abmelden fehlgeschlagen: {machine.DisplayName}";
-            MessageBox.Show(
-                this,
-                $"Die Windows-Sitzung auf \"{machine.DisplayName}\" konnte nicht abgemeldet werden.\n\n{ex.Message}\n\nHinweis: Remote-Abmelden benötigt ausreichende Rechte auf dem Zielserver und erreichbare Terminaldienste.",
-                Brand.AppName,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-        }
+
+        _statusLabel.Text = $"Abmelden fehlgeschlagen: {machine.DisplayName}";
+        MessageBox.Show(
+            this,
+            $"Die Windows-Sitzung auf \"{machine.DisplayName}\" konnte nicht abgemeldet werden.\n\n{error}\n\nRDPMan hat zuerst das Remote-Abmelden über Windows versucht und danach den Abmeldebefehl direkt in der sichtbaren RDP-Sitzung.",
+            Brand.AppName,
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Error);
     }
 
     private void LogOffAllConnected()
@@ -1783,16 +1776,13 @@ public sealed class MainForm : Form
         var failed = new List<string>();
         foreach (var (machineId, session) in sessions)
         {
-            try
+            if (TryLogOffSession(machineId, session, allowInteractiveFallback: true, out _, out var error))
             {
-                RemoteLogoffService.LogOff(session.Machine, session.Credential);
-                CloseLocalSession(machineId);
                 loggedOffMachines++;
+                continue;
             }
-            catch (Exception ex)
-            {
-                failed.Add($"{session.Machine.DisplayName}: {ex.Message}");
-            }
+
+            failed.Add($"{session.Machine.DisplayName}: {error}");
         }
 
         RefreshMachineList();
@@ -1809,6 +1799,53 @@ public sealed class MainForm : Form
                 Brand.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
+        }
+    }
+
+    private bool TryLogOffSession(Guid machineId, IRemoteSessionHost session, bool allowInteractiveFallback, out string detail, out string error)
+    {
+        detail = "";
+        error = "";
+
+        try
+        {
+            var loggedOff = RemoteLogoffService.LogOff(session.Machine, session.Credential);
+            CloseLocalSession(machineId);
+            detail = loggedOff > 1
+                ? $"{loggedOff} Sitzungen abgemeldet: {session.Machine.DisplayName}"
+                : $"Abgemeldet: {session.Machine.DisplayName}";
+            return true;
+        }
+        catch (Exception remoteException)
+        {
+            error = remoteException.Message;
+        }
+
+        if (!allowInteractiveFallback)
+        {
+            return false;
+        }
+
+        try
+        {
+            SelectMachine(machineId);
+            ShowSessionControl(session);
+            Application.DoEvents();
+            if (!session.TryRequestInteractiveLogOff())
+            {
+                error = $"{error}{Environment.NewLine}Interaktiver Abmeldeversuch konnte nicht an die RDP-Sitzung gesendet werden.";
+                return false;
+            }
+
+            Thread.Sleep(500);
+            CloseLocalSession(machineId);
+            detail = $"Abmeldung in Sitzung gestartet: {session.Machine.DisplayName}";
+            return true;
+        }
+        catch (Exception interactiveException)
+        {
+            error = $"{error}{Environment.NewLine}{interactiveException.Message}";
+            return false;
         }
     }
 
