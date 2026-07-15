@@ -144,6 +144,7 @@ public static class RemoteLogoffService
 
         var loggedOff = 0;
         var errors = new List<string>();
+        var candidates = new List<RemoteSessionCandidate>();
         try
         {
             var itemSize = Marshal.SizeOf<WtsSessionInfo>();
@@ -163,19 +164,23 @@ public static class RemoteLogoffService
                 }
 
                 var domain = QuerySessionString(server, session.SessionId, WtsInfoClass.DomainName);
-                if (!string.IsNullOrWhiteSpace(targetDomain) &&
-                    !domain.Equals(targetDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+                var domainMatches = string.IsNullOrWhiteSpace(targetDomain) ||
+                    domain.Equals(targetDomain, StringComparison.OrdinalIgnoreCase);
+                candidates.Add(new RemoteSessionCandidate(session.SessionId, user, domain, session.WinStationName, domainMatches));
+            }
 
-                if (WTSLogoffSession(server, session.SessionId, wait: false))
+            var selectedCandidates = candidates.Any(candidate => candidate.DomainMatches)
+                ? candidates.Where(candidate => candidate.DomainMatches)
+                : candidates;
+            foreach (var candidate in selectedCandidates)
+            {
+                if (WTSLogoffSession(server, candidate.SessionId, wait: false))
                 {
                     loggedOff++;
                     continue;
                 }
 
-                errors.Add($"{user} ({session.WinStationName}): {new Win32Exception(Marshal.GetLastWin32Error()).Message}");
+                errors.Add($"{candidate.DisplayName} ({candidate.StationName}): {new Win32Exception(Marshal.GetLastWin32Error()).Message}");
             }
         }
         finally
@@ -200,8 +205,27 @@ public static class RemoteLogoffService
 
     private static bool UserMatches(string sessionUser, string targetUser, string targetUserAlias)
     {
-        return sessionUser.Equals(targetUser, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(targetUserAlias) && sessionUser.Equals(targetUserAlias, StringComparison.OrdinalIgnoreCase));
+        var normalizedSessionUser = NormalizeUserName(sessionUser);
+        return normalizedSessionUser.Equals(NormalizeUserName(targetUser), StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(targetUserAlias) && normalizedSessionUser.Equals(NormalizeUserName(targetUserAlias), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeUserName(string value)
+    {
+        var user = value.Trim();
+        var slashIndex = user.IndexOf('\\');
+        if (slashIndex > 0 && slashIndex < user.Length - 1)
+        {
+            user = user[(slashIndex + 1)..];
+        }
+
+        var atIndex = user.IndexOf('@');
+        if (atIndex > 0)
+        {
+            user = user[..atIndex];
+        }
+
+        return user;
     }
 
     private static string QuerySessionString(IntPtr server, int sessionId, WtsInfoClass infoClass)
@@ -292,6 +316,11 @@ public static class RemoteLogoffService
         Reset,
         Down,
         Init,
+    }
+
+    private sealed record RemoteSessionCandidate(int SessionId, string User, string Domain, string StationName, bool DomainMatches)
+    {
+        public string DisplayName => string.IsNullOrWhiteSpace(Domain) ? User : $@"{Domain}\{User}";
     }
 }
 
