@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RDPMan</AssemblyName>
     <RootNamespace>RdpMan.Desktop</RootNamespace>
-    <Version>0.1.44</Version>
+    <Version>0.1.45</Version>
     <Authors>SANDAV</Authors>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>

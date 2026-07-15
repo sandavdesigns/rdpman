@@ -187,7 +187,7 @@ public static class RemoteLogoffService
         {
             var user = string.IsNullOrWhiteSpace(targetDomain) ? targetUser : $@"{targetDomain}\{targetUser}";
             var suffix = errors.Count == 0 ? "" : $"{Environment.NewLine}{string.Join(Environment.NewLine, errors)}";
-            throw new InvalidOperationException($"Keine passende Sitzung für \"{user}\" auf \"{host}\" gefunden.{suffix}");
+            throw new NoMatchingRemoteSessionException($"Keine passende Sitzung für \"{user}\" auf \"{host}\" gefunden.{suffix}");
         }
 
         if (errors.Count > 0)
@@ -292,5 +292,12 @@ public static class RemoteLogoffService
         Reset,
         Down,
         Init,
+    }
+}
+
+public sealed class NoMatchingRemoteSessionException : Exception
+{
+    public NoMatchingRemoteSessionException(string message) : base(message)
+    {
     }
 }

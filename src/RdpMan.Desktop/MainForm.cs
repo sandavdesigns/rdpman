@@ -1727,7 +1727,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (TryLogOffSession(machine.Id, session, out var detail, out var error))
+        if (TryLogOffSession(machine.Id, session, out var detail, out var error, out _))
         {
             ShowSelectedSession();
             RefreshMachineList();
@@ -1773,6 +1773,7 @@ public sealed class MainForm : Form
         }
 
         var loggedOffMachines = 0;
+        var closedWithoutServerSession = 0;
         var failed = new List<string>();
         var processedOperations = new Dictionary<string, LogOffOperationResult>(StringComparer.OrdinalIgnoreCase);
         foreach (var (machineId, session) in sessions)
@@ -1791,10 +1792,18 @@ public sealed class MainForm : Form
                 continue;
             }
 
-            if (TryLogOffSession(machineId, session, out _, out var error))
+            if (TryLogOffSession(machineId, session, out _, out var error, out var noMatchingSession))
             {
                 processedOperations[operationKey] = new LogOffOperationResult(true, "");
                 loggedOffMachines++;
+                continue;
+            }
+
+            if (noMatchingSession)
+            {
+                processedOperations[operationKey] = new LogOffOperationResult(true, "");
+                CloseLocalSession(machineId);
+                closedWithoutServerSession++;
                 continue;
             }
 
@@ -1806,7 +1815,9 @@ public sealed class MainForm : Form
         ShowSelectedSession();
         _machineList.Invalidate();
         _connectedMachineList.Invalidate();
-        _statusLabel.Text = $"Abgemeldet: {loggedOffMachines} von {sessions.Count}";
+        _statusLabel.Text = closedWithoutServerSession == 0
+            ? $"Abgemeldet: {loggedOffMachines} von {sessions.Count}"
+            : $"Abgemeldet: {loggedOffMachines}, bereinigt: {closedWithoutServerSession}";
 
         if (failed.Count > 0)
         {
@@ -1819,10 +1830,11 @@ public sealed class MainForm : Form
         }
     }
 
-    private bool TryLogOffSession(Guid machineId, IRemoteSessionHost session, out string detail, out string error)
+    private bool TryLogOffSession(Guid machineId, IRemoteSessionHost session, out string detail, out string error, out bool noMatchingSession)
     {
         detail = "";
         error = "";
+        noMatchingSession = false;
 
         try
         {
@@ -1832,6 +1844,11 @@ public sealed class MainForm : Form
                 ? $"{loggedOff} Sitzungen abgemeldet: {session.Machine.DisplayName}"
                 : $"Abgemeldet: {session.Machine.DisplayName}";
             return true;
+        }
+        catch (NoMatchingRemoteSessionException noMatchingException)
+        {
+            error = noMatchingException.Message;
+            noMatchingSession = true;
         }
         catch (Exception remoteException)
         {
