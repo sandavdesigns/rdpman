@@ -400,7 +400,7 @@ public sealed class MainForm : Form
         list.BackColor = AppTheme.Sidebar;
         list.ForeColor = Color.White;
         list.Font = AppTheme.UiFont;
-        list.ItemHeight = 60;
+        list.ItemHeight = 48;
         list.DrawMode = DrawMode.OwnerDrawFixed;
         list.IntegralHeight = false;
         list.DrawItem += DrawMachineItem;
@@ -429,7 +429,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        var itemBounds = Rectangle.Inflate(list.GetItemRectangle(index), -2, -3);
+        var itemBounds = Rectangle.Inflate(list.GetItemRectangle(index), -2, -2);
         if (!ClipboardToggleBounds(itemBounds).Contains(e.Location))
         {
             return;
@@ -732,7 +732,7 @@ public sealed class MainForm : Form
         var machine = (MachineEntry)list.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
         var isConnected = IsSessionConnected(machine.Id);
-        var bounds = Rectangle.Inflate(e.Bounds, -2, -3);
+        var bounds = Rectangle.Inflate(e.Bounds, -2, -2);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
             ? selected ? Color.FromArgb(22, 78, 99) : Color.FromArgb(19, 50, 60)
@@ -752,29 +752,21 @@ public sealed class MainForm : Form
 
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
 
-        e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 12, 22, 22);
+        e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 10, 20, 20);
         var showClipboardToggle = _data.ShowConnectedClipboardToggle && ReferenceEquals(list, _connectedMachineList) && isConnected;
         var clipboardButton = ClipboardToggleBounds(bounds);
         var badge = showClipboardToggle
-            ? new Rectangle(clipboardButton.Left - 46, bounds.Top + 14, 38, 18)
-            : new Rectangle(bounds.Right - 48, bounds.Top + 14, 38, 18);
+            ? new Rectangle(clipboardButton.Left - 44, bounds.Top + 10, 36, 18)
+            : new Rectangle(bounds.Right - 46, bounds.Top + 10, 36, 18);
         var textRight = isConnected ? badge.Left - 8 : bounds.Right - 10;
-        var textWidth = Math.Max(32, textRight - (bounds.Left + 48));
+        var textWidth = Math.Max(32, textRight - (bounds.Left + 44));
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
-        e.Graphics.DrawString(displayName, titleFont, title, new RectangleF(bounds.Left + 48, bounds.Top + 6, textWidth, 18), ellipsis);
+        e.Graphics.DrawString(displayName, titleFont, title, new RectangleF(bounds.Left + 44, bounds.Top + 4, textWidth, 18), ellipsis);
 
-        var secondary = SecondaryMachineLine(machine);
-        var ipTop = 25;
+        var secondary = MachineListDetailLine(machine);
         if (!string.IsNullOrWhiteSpace(secondary))
         {
-            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 48, bounds.Top + 24, textWidth, 16), ellipsis);
-            ipTop = 38;
-        }
-
-        if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
-        {
-            var ipLine = $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
-            e.Graphics.DrawString(ipLine, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 48, bounds.Top + ipTop, textWidth, 16), ellipsis);
+            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 44, bounds.Top + 22, textWidth, 15), ellipsis);
         }
 
         if (isConnected)
@@ -790,7 +782,7 @@ public sealed class MainForm : Form
 
     private static Rectangle ClipboardToggleBounds(Rectangle itemBounds)
     {
-        return new Rectangle(itemBounds.Right - 42, itemBounds.Top + 12, 30, 24);
+        return new Rectangle(itemBounds.Right - 40, itemBounds.Top + 9, 28, 22);
     }
 
     private static void DrawClipboardToggle(Graphics graphics, Rectangle bounds, bool enabled)
@@ -868,6 +860,16 @@ public sealed class MainForm : Form
             (null, true) => machine.DnsName,
             _ => "",
         };
+    }
+
+    private string MachineListDetailLine(MachineEntry machine)
+    {
+        if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
+        {
+            return $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
+        }
+
+        return SecondaryMachineLine(machine);
     }
 
     private void LoadData()
@@ -1116,7 +1118,7 @@ public sealed class MainForm : Form
         _connectedMachineList.Visible = connectedMachines.Count > 0;
         _connectedMachineList.Height = connectedMachines.Count == 0
             ? 0
-            : connectedMachines.Count * _connectedMachineList.ItemHeight + 8;
+            : connectedMachines.Count * _connectedMachineList.ItemHeight + 6;
         var countText = _data.Machines.Count == 1 ? "1 Maschine" : $"{_data.Machines.Count} Maschinen";
         _machineCount.Text = _temporaryMachines.Count == 0 ? countText : $"{countText}, {_temporaryMachines.Count} ad hoc";
         if (selectedId is not null)
