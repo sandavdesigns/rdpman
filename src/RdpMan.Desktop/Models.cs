@@ -23,6 +23,7 @@ public sealed class AppData
     public bool RememberConnectedSessions { get; set; } = true;
     public bool RestoreConnectedSessionsOnStart { get; set; } = true;
     public bool ShowConnectedClipboardToggle { get; set; } = true;
+    public string SshTerminalTextColor { get; set; } = SshTerminalTheme.DefaultTextColor;
     public bool SetupWizardCompleted { get; set; }
 }
 

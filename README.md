@@ -8,6 +8,7 @@ RDPMan is a native Windows desktop application for managing and switching betwee
 - Multiple open RDP sessions with sidebar switching
 - Embedded SSH terminal for Linux and Unix hosts with persistent session switching
 - Password-based SSH authentication and configurable SSH ports
+- Configurable SSH terminal text color with a Matrix-green default
 - Connect, connect as, reconnect, disconnect, remove entry, and continuous ping actions
 - Ad hoc RDP and SSH sessions that exist only while connected
 - Instant machine search across name, host, group, and notes
@@ -45,7 +46,7 @@ You can also download the build from **Actions**:
 2. Open the latest **Build Windows App** run.
 3. Download the `RDPMan-<version>-win-x64` artifact.
 
-Tagged versions like `v0.2.1` also create a GitHub Release with the ZIP attached.
+Tagged versions like `v0.2.2` also create a GitHub Release with the ZIP attached.
 
 The build intentionally loads the Microsoft RDP ActiveX control at runtime from
 the Windows registry. This avoids generated COM wrapper files in CI while still

@@ -909,6 +909,9 @@ public sealed class MainForm : Form
 
     private void NormalizeData()
     {
+        _data.SshTerminalTextColor = SshTerminalTheme.ToHtml(
+            SshTerminalTheme.ParseTextColor(_data.SshTerminalTextColor));
+
         if (!_data.SetupWizardCompleted && (_data.Machines.Count > 0 || _data.Credentials.Count > 0))
         {
             _data.SetupWizardCompleted = true;
@@ -1598,7 +1601,11 @@ public sealed class MainForm : Form
         var effectiveMachine = MachineWithEffectiveRedirects(machine);
         effectiveMachine.ConnectionHost = EndpointResolver.SelectConnectionAddress(machine);
         return machine.ConnectionType == RemoteConnectionType.Ssh
-            ? new SshSessionHost(effectiveMachine, credential, fingerprint => RememberSshHostKey(machine.Id, fingerprint))
+            ? new SshSessionHost(
+                effectiveMachine,
+                credential,
+                fingerprint => RememberSshHostKey(machine.Id, fingerprint),
+                _data.SshTerminalTextColor)
             : new RdpSessionHost(effectiveMachine, credential);
     }
 
@@ -1978,6 +1985,10 @@ public sealed class MainForm : Form
             SaveData();
             RefreshMachineList();
             _connectedMachineList.Invalidate();
+            foreach (var sshSession in _sessions.Values.OfType<SshSessionHost>())
+            {
+                sshSession.SetTextColor(_data.SshTerminalTextColor);
+            }
         }
     }
 

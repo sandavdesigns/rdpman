@@ -21,6 +21,8 @@ public sealed class SetupForm : Form
     private readonly CheckBox _rememberConnectedSessions = new();
     private readonly CheckBox _restoreConnectedSessionsOnStart = new();
     private readonly CheckBox _showConnectedClipboardToggle = new();
+    private readonly Panel _sshTextColorPreview = new();
+    private readonly Label _sshTerminalPreviewText = new();
     private readonly ListBox _autoReconnect = new();
     private readonly List<string> _previewNames = [];
 
@@ -74,6 +76,7 @@ public sealed class SetupForm : Form
         tabs.TabPages.Add(GroupsTab());
         tabs.TabPages.Add(AdImportTab());
         tabs.TabPages.Add(RdpTab());
+        tabs.TabPages.Add(SshTab());
         tabs.TabPages.Add(BackupTab());
 
         var buttons = AppTheme.Footer();
@@ -281,6 +284,80 @@ public sealed class SetupForm : Form
         page.Controls.Add(actions);
         page.Controls.Add(info);
         return page;
+    }
+
+    private TabPage SshTab()
+    {
+        var page = Page("SSH");
+        var info = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 54,
+            Text = "Darstellung für alle eingebetteten SSH-Terminals.",
+            ForeColor = AppTheme.MutedText,
+            Font = AppTheme.UiFont,
+        };
+
+        _sshTextColorPreview.Dock = DockStyle.Top;
+        _sshTextColorPreview.Height = 130;
+        _sshTextColorPreview.BackColor = Color.FromArgb(10, 15, 24);
+        _sshTextColorPreview.Padding = new Padding(18);
+
+        _sshTerminalPreviewText.Dock = DockStyle.Fill;
+        _sshTerminalPreviewText.Text = "admin@server:~$ systemctl status ssh\n● ssh.service - OpenSSH Server\nactive (running)";
+        _sshTerminalPreviewText.Font = new Font("Consolas", 11f, FontStyle.Regular);
+        _sshTerminalPreviewText.TextAlign = ContentAlignment.MiddleLeft;
+        _sshTextColorPreview.Controls.Add(_sshTerminalPreviewText);
+        UpdateSshColorPreview();
+
+        var chooseColor = AppTheme.Button("Textfarbe wählen", primary: true);
+        chooseColor.Width = 150;
+        chooseColor.Click += (_, _) => ChooseSshTextColor();
+        var resetColor = AppTheme.Button("Matrix-Grün");
+        resetColor.Width = 126;
+        resetColor.Click += (_, _) => SetSshTextColor(SshTerminalTheme.DefaultTextColor);
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 58,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = AppTheme.Surface,
+            Padding = new Padding(0, 10, 0, 8),
+        };
+        actions.Controls.Add(chooseColor);
+        actions.Controls.Add(resetColor);
+
+        page.Controls.Add(_sshTextColorPreview);
+        page.Controls.Add(actions);
+        page.Controls.Add(info);
+        return page;
+    }
+
+    private void ChooseSshTextColor()
+    {
+        using var dialog = new ColorDialog
+        {
+            Color = SshTerminalTheme.ParseTextColor(_data.SshTerminalTextColor),
+            FullOpen = true,
+        };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            SetSshTextColor(SshTerminalTheme.ToHtml(dialog.Color));
+        }
+    }
+
+    private void SetSshTextColor(string color)
+    {
+        _data.SshTerminalTextColor = color;
+        DataChanged = true;
+        UpdateSshColorPreview();
+    }
+
+    private void UpdateSshColorPreview()
+    {
+        _sshTerminalPreviewText.ForeColor = SshTerminalTheme.ParseTextColor(_data.SshTerminalTextColor);
+        _sshTerminalPreviewText.Text = $"admin@server:~$ systemctl status ssh\n● ssh.service - OpenSSH Server\nactive (running)    {_data.SshTerminalTextColor}";
     }
 
     private void RefreshCredentials()

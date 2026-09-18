@@ -20,7 +20,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
     public Control Control => _host;
     public bool IsConnected => !_disposed && _client?.IsConnected == true && _shell?.CanWrite == true;
 
-    public SshSessionHost(MachineEntry machine, CredentialProfile? credential, Action<string> rememberHostKey)
+    public SshSessionHost(MachineEntry machine, CredentialProfile? credential, Action<string> rememberHostKey, string textColor)
     {
         Machine = machine;
         Credential = credential;
@@ -33,7 +33,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         _terminal.ReadOnly = true;
         _terminal.BorderStyle = BorderStyle.None;
         _terminal.BackColor = Color.FromArgb(10, 15, 24);
-        _terminal.ForeColor = Color.FromArgb(226, 232, 240);
+        _terminal.ForeColor = SshTerminalTheme.ParseTextColor(textColor);
         _terminal.Font = new Font("Consolas", 11f, FontStyle.Regular);
         _terminal.DetectUrls = false;
         _terminal.HideSelection = false;
@@ -45,6 +45,17 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         _terminal.MouseDown += (_, _) => _terminal.Focus();
 
         _host.Controls.Add(_terminal);
+    }
+
+    public void SetTextColor(string textColor)
+    {
+        var color = SshTerminalTheme.ParseTextColor(textColor);
+        _terminal.ForeColor = color;
+        _terminal.SelectAll();
+        _terminal.SelectionColor = color;
+        _terminal.Select(_terminal.TextLength, 0);
+        _terminal.SelectionColor = color;
+        _terminal.Invalidate();
     }
 
     public void Connect()
