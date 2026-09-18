@@ -8,7 +8,11 @@ namespace RdpMan.Desktop;
 public sealed partial class SshSessionHost : IRemoteSessionHost
 {
     private readonly Panel _host = new();
+    private readonly Panel _toolbar = new();
     private readonly RichTextBox _terminal = new();
+    private readonly Button _copyButton = new();
+    private readonly Button _pasteButton = new();
+    private readonly ContextMenuStrip _terminalMenu = new();
     private readonly object _writeLock = new();
     private readonly Action<string> _rememberHostKey;
     private SshClient? _client;
@@ -29,6 +33,9 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         _host.BackColor = Color.FromArgb(10, 15, 24);
         _host.Dock = DockStyle.Fill;
 
+        ConfigureToolbar();
+        ConfigureContextMenu();
+
         _terminal.Dock = DockStyle.Fill;
         _terminal.ReadOnly = true;
         _terminal.BorderStyle = BorderStyle.None;
@@ -42,9 +49,13 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         _terminal.ShortcutsEnabled = false;
         _terminal.KeyDown += TerminalKeyDown;
         _terminal.KeyPress += TerminalKeyPress;
+        _terminal.SelectionChanged += (_, _) => UpdateClipboardActions();
         _terminal.MouseDown += (_, _) => _terminal.Focus();
+        _terminal.ContextMenuStrip = _terminalMenu;
 
         _host.Controls.Add(_terminal);
+        _host.Controls.Add(_toolbar);
+        UpdateClipboardActions();
     }
 
     public void SetTextColor(string textColor)
@@ -105,6 +116,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
             16 * 1024);
         _shell.DataReceived += ShellDataReceived;
         AppendSystemLine("SSH-Verbindung hergestellt. Strg+Umschalt+V fügt Text ein.");
+        UpdateClipboardActions();
         _terminal.Focus();
     }
 
@@ -131,6 +143,11 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
             }
             _client.Dispose();
             _client = null;
+        }
+
+        if (!_disposed)
+        {
+            UpdateClipboardActions();
         }
     }
 
@@ -166,6 +183,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
 
         _disposed = true;
         Disconnect();
+        _terminalMenu.Dispose();
         _terminal.Dispose();
         _host.Dispose();
     }
@@ -272,20 +290,14 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
     {
         if (e.Control && e.Shift && e.KeyCode == Keys.C)
         {
-            if (_terminal.SelectionLength > 0)
-            {
-                _terminal.Copy();
-            }
+            CopySelection();
             e.SuppressKeyPress = true;
             return;
         }
 
         if ((e.Control && e.Shift && e.KeyCode == Keys.V) || (e.Shift && e.KeyCode == Keys.Insert))
         {
-            if (Clipboard.ContainsText())
-            {
-                Write(Clipboard.GetText().Replace("\r\n", "\r").Replace('\n', '\r'));
-            }
+            PasteClipboard();
             e.SuppressKeyPress = true;
             return;
         }
@@ -338,6 +350,95 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         {
             shell.Write(bytes, 0, bytes.Length);
             shell.Flush();
+        }
+    }
+
+    private void ConfigureToolbar()
+    {
+        _toolbar.Dock = DockStyle.Top;
+        _toolbar.Height = 42;
+        _toolbar.BackColor = Color.FromArgb(15, 23, 42);
+        _toolbar.Padding = new Padding(8, 6, 8, 6);
+        _toolbar.Paint += (_, e) =>
+        {
+            using var border = new Pen(Color.FromArgb(51, 65, 85));
+            e.Graphics.DrawLine(border, 0, _toolbar.Height - 1, _toolbar.Width, _toolbar.Height - 1);
+        };
+
+        ConfigureToolbarButton(_copyButton, "Kopieren", 8, CopySelection);
+        ConfigureToolbarButton(_pasteButton, "Einfügen", 104, PasteClipboard);
+        _toolbar.Controls.Add(_copyButton);
+        _toolbar.Controls.Add(_pasteButton);
+    }
+
+    private static void ConfigureToolbarButton(Button button, string text, int left, Action action)
+    {
+        button.Text = text;
+        button.Size = new Size(90, 29);
+        button.Location = new Point(left, 6);
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+        button.FlatAppearance.MouseOverBackColor = Color.FromArgb(51, 65, 85);
+        button.FlatAppearance.MouseDownBackColor = Color.FromArgb(71, 85, 105);
+        button.BackColor = Color.FromArgb(30, 41, 59);
+        button.ForeColor = Color.FromArgb(226, 232, 240);
+        button.Font = new Font("Segoe UI", 8.5f, FontStyle.Regular);
+        button.Cursor = Cursors.Hand;
+        button.Click += (_, _) => action();
+    }
+
+    private void ConfigureContextMenu()
+    {
+        var copy = _terminalMenu.Items.Add("Kopieren", null, (_, _) => CopySelection());
+        var paste = _terminalMenu.Items.Add("Einfügen", null, (_, _) => PasteClipboard());
+        _terminalMenu.Opening += (_, _) =>
+        {
+            copy.Enabled = _terminal.SelectionLength > 0;
+            paste.Enabled = ClipboardHasText();
+        };
+    }
+
+    private void UpdateClipboardActions()
+    {
+        _copyButton.Enabled = _terminal.SelectionLength > 0;
+        _pasteButton.Enabled = IsConnected;
+    }
+
+    private void CopySelection()
+    {
+        if (_terminal.SelectionLength > 0)
+        {
+            _terminal.Copy();
+        }
+        _terminal.Focus();
+    }
+
+    private void PasteClipboard()
+    {
+        try
+        {
+            if (IsConnected && ClipboardHasText())
+            {
+                var text = Clipboard.GetText().Replace("\r\n", "\r").Replace('\n', '\r');
+                Write(text);
+            }
+        }
+        catch
+        {
+            // The Windows clipboard can be temporarily locked by another application.
+        }
+        _terminal.Focus();
+    }
+
+    private static bool ClipboardHasText()
+    {
+        try
+        {
+            return Clipboard.ContainsText();
+        }
+        catch
+        {
+            return false;
         }
     }
 
