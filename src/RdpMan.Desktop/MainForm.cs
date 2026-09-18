@@ -739,6 +739,7 @@ public sealed class MainForm : Form
         }
 
         var machine = (MachineEntry)list.Items[e.Index];
+        var isSsh = machine.ConnectionType == RemoteConnectionType.Ssh;
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
         var isConnected = IsSessionConnected(machine.Id);
         var bounds = Rectangle.Inflate(e.Bounds, -2, -2);
@@ -751,8 +752,11 @@ public sealed class MainForm : Form
         using var muted = new SolidBrush(machine.IsTemporary ? Color.FromArgb(153, 246, 228) : Color.FromArgb(148, 163, 184));
         using var badgeBackground = new SolidBrush(Color.FromArgb(34, 197, 94));
         using var badgeText = new SolidBrush(Color.FromArgb(5, 46, 22));
+        using var sshBadgeBackground = new SolidBrush(Color.FromArgb(13, 148, 136));
+        using var sshBadgeText = new SolidBrush(Color.FromArgb(240, 253, 250));
         using var titleFont = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
         using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
+        using var protocolFont = new Font("Segoe UI Semibold", 6.8f, FontStyle.Bold);
         using var ellipsis = new StringFormat
         {
             Trimming = StringTrimming.EllipsisCharacter,
@@ -771,9 +775,17 @@ public sealed class MainForm : Form
             ? new Rectangle(clipboardButton.Left - 44, bounds.Top + 10, 36, 18)
             : new Rectangle(bounds.Right - 46, bounds.Top + 10, 36, 18);
         var textRight = isConnected ? badge.Left - 8 : bounds.Right - 10;
-        var textWidth = Math.Max(32, textRight - (bounds.Left + 44));
+        var titleLeft = bounds.Left + 44;
+        if (isSsh)
+        {
+            var sshBadge = new Rectangle(titleLeft, bounds.Top + 4, 29, 16);
+            e.Graphics.FillRoundedRectangle(sshBadgeBackground, sshBadge, 5);
+            e.Graphics.DrawString("SSH", protocolFont, sshBadgeText, sshBadge.Left + 4, sshBadge.Top + 2);
+            titleLeft = sshBadge.Right + 6;
+        }
+        var textWidth = Math.Max(32, textRight - titleLeft);
         var displayName = machine.IsFavorite ? $"* {machine.DisplayName}" : machine.DisplayName;
-        e.Graphics.DrawString(displayName, titleFont, title, new RectangleF(bounds.Left + 44, bounds.Top + 4, textWidth, 18), ellipsis);
+        e.Graphics.DrawString(displayName, titleFont, title, new RectangleF(titleLeft, bounds.Top + 4, textWidth, 18), ellipsis);
 
         var secondary = MachineListDetailLine(machine);
         if (!string.IsNullOrWhiteSpace(secondary))
