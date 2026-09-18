@@ -510,9 +510,11 @@ public sealed class MainForm : Form
 
             SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
             var isConnected = IsSessionConnected(machine.Id);
+            var isRdp = machine.ConnectionType == RemoteConnectionType.Rdp;
             connect.Enabled = true;
             connectAs.Enabled = true;
-            logOff.Enabled = isConnected;
+            logOff.Enabled = isConnected && isRdp;
+            logOff.Text = isRdp ? "Abmelden" : "Abmelden (nur RDP)";
             disconnect.Enabled = isConnected;
             favorite.Enabled = !machine.IsTemporary;
             edit.Enabled = !machine.IsTemporary;
@@ -675,7 +677,10 @@ public sealed class MainForm : Form
 
     private string MachineTooltip(MachineEntry machine)
     {
-        var credential = CredentialFor(machine)?.DisplayName ?? "Aktueller Windows-Benutzer";
+        var selectedCredential = CredentialFor(machine);
+        var credential = machine.ConnectionType == RemoteConnectionType.Ssh
+            ? selectedCredential?.Username ?? "Kein SSH-Zugang ausgewählt"
+            : selectedCredential?.DisplayName ?? "Aktueller Windows-Benutzer";
         var group = GroupFor(machine);
         var redirects = EffectiveRedirectSettings(machine);
         var flags = new List<string>();
@@ -700,6 +705,7 @@ public sealed class MainForm : Form
         {
             machine.DisplayName,
             $"Host: {machine.DnsName}",
+            machine.ConnectionType == RemoteConnectionType.Ssh ? $"Verbindung: SSH, Port {machine.SshPort}" : "Verbindung: RDP",
         };
         if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
         {
@@ -711,8 +717,11 @@ public sealed class MainForm : Form
             lines.Add($"Gruppe: {group.DisplayName}");
         }
         lines.Add($"Zugang: {credential}");
-        lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
-        lines.Add($"Freigaben-Modus: {(machine.UseGlobalRedirectSettings != false ? "global" : "Rechner")}");
+        if (machine.ConnectionType == RemoteConnectionType.Rdp)
+        {
+            lines.Add($"Freigaben: {(flags.Count == 0 ? "keine" : string.Join(", ", flags))}");
+            lines.Add($"Freigaben-Modus: {(machine.UseGlobalRedirectSettings != false ? "global" : "Rechner")}");
+        }
         if (!string.IsNullOrWhiteSpace(machine.Notes))
         {
             lines.Add("");
@@ -753,7 +762,10 @@ public sealed class MainForm : Form
         e.Graphics.FillRoundedRectangle(background, bounds, 8);
 
         e.Graphics.FillEllipse(accent, bounds.Left + 12, bounds.Top + 10, 20, 20);
-        var showClipboardToggle = _data.ShowConnectedClipboardToggle && ReferenceEquals(list, _connectedMachineList) && isConnected;
+        var showClipboardToggle = _data.ShowConnectedClipboardToggle
+            && machine.ConnectionType == RemoteConnectionType.Rdp
+            && ReferenceEquals(list, _connectedMachineList)
+            && isConnected;
         var clipboardButton = ClipboardToggleBounds(bounds);
         var badge = showClipboardToggle
             ? new Rectangle(clipboardButton.Left - 44, bounds.Top + 10, 36, 18)
@@ -864,12 +876,17 @@ public sealed class MainForm : Form
 
     private string MachineListDetailLine(MachineEntry machine)
     {
+        var protocol = machine.ConnectionType == RemoteConnectionType.Ssh ? $"SSH :{machine.SshPort}" : "";
         if (!string.IsNullOrWhiteSpace(machine.LastKnownIpAddress))
         {
-            return $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
+            var address = $"IP {machine.LastKnownIpAddress} - {FormatLastKnownIpUpdated(machine)}";
+            return string.IsNullOrWhiteSpace(protocol) ? address : $"{protocol} - {address}";
         }
 
-        return SecondaryMachineLine(machine);
+        var secondary = SecondaryMachineLine(machine);
+        return string.IsNullOrWhiteSpace(protocol)
+            ? secondary
+            : string.IsNullOrWhiteSpace(secondary) ? protocol : $"{protocol} - {secondary}";
     }
 
     private void LoadData()
@@ -887,6 +904,11 @@ public sealed class MainForm : Form
 
         foreach (var machine in _data.Machines)
         {
+            if (machine.SshPort is < 1 or > 65535)
+            {
+                machine.SshPort = 22;
+            }
+
             if (machine.UseGlobalRedirectSettings is null || HasLegacyDefaultRedirectSettings(machine))
             {
                 machine.UseGlobalRedirectSettings = true;
@@ -1377,9 +1399,10 @@ public sealed class MainForm : Form
     private void NotifyConnectionFailed(MachineEntry machine)
     {
         _statusLabel.Text = $"Verbindung fehlgeschlagen: {machine.DisplayName}";
+        var protocol = machine.ConnectionType == RemoteConnectionType.Ssh ? "SSH" : "RDP";
         MessageBox.Show(
             this,
-            $"Die RDP-Verbindung zu \"{machine.DisplayName}\" wurde nicht hergestellt.\n\nDer Zielrechner ist eventuell nicht erreichbar, RDP ist deaktiviert, die Anmeldung wurde abgebrochen oder die Sicherheitsabfrage wurde nicht bestätigt.",
+            $"Die {protocol}-Verbindung zu \"{machine.DisplayName}\" wurde nicht hergestellt.\n\nDer Zielrechner ist eventuell nicht erreichbar oder die Anmeldung wurde abgelehnt.",
             Brand.AppName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Warning);
@@ -1412,7 +1435,7 @@ public sealed class MainForm : Form
             _rdpPanel.Controls.Add(_placeholder);
             _placeholder.Text = SelectedMachine() is null
                 ? "Links eine Maschine auswählen und verbinden."
-                : "Noch nicht verbunden. Connect startet die RDP-Session.";
+                : $"Noch nicht verbunden. Connect startet die {(SelectedMachine()?.ConnectionType == RemoteConnectionType.Ssh ? "SSH" : "RDP")}-Session.";
             _statusLabel.Text = SelectedMachine()?.DnsName ?? "Bereit";
             return;
         }
@@ -1476,6 +1499,8 @@ public sealed class MainForm : Form
         {
             Name = dialog.HostName,
             DnsName = dialog.HostName,
+            ConnectionType = dialog.ConnectionType,
+            SshPort = dialog.SshPort,
             UseGlobalRedirectSettings = true,
             IsTemporary = true,
         };
@@ -1544,9 +1569,10 @@ public sealed class MainForm : Form
             _statusLabel.Text = $"Verbindung fehlgeschlagen: {machine.DisplayName}";
             if (showErrors)
             {
+                var protocol = machine.ConnectionType == RemoteConnectionType.Ssh ? "SSH" : "RDP";
                 MessageBox.Show(
                     this,
-                    $"Die RDP-Verbindung zu \"{machine.DisplayName}\" konnte nicht gestartet werden.\n\n{ex.Message}",
+                    $"Die {protocol}-Verbindung zu \"{machine.DisplayName}\" konnte nicht gestartet werden.\n\n{ex.Message}",
                     Brand.AppName,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -1559,7 +1585,9 @@ public sealed class MainForm : Form
     {
         var effectiveMachine = MachineWithEffectiveRedirects(machine);
         effectiveMachine.ConnectionHost = EndpointResolver.SelectConnectionAddress(machine);
-        return new RdpSessionHost(effectiveMachine, credential);
+        return machine.ConnectionType == RemoteConnectionType.Ssh
+            ? new SshSessionHost(effectiveMachine, credential, fingerprint => RememberSshHostKey(machine.Id, fingerprint))
+            : new RdpSessionHost(effectiveMachine, credential);
     }
 
     private MachineEntry MachineWithEffectiveRedirects(MachineEntry machine)
@@ -1570,6 +1598,9 @@ public sealed class MainForm : Form
             Id = machine.Id,
             Name = machine.Name,
             DnsName = machine.DnsName,
+            ConnectionType = machine.ConnectionType,
+            SshPort = machine.SshPort,
+            SshHostKeyFingerprint = machine.SshHostKeyFingerprint,
             LastKnownIpAddress = machine.LastKnownIpAddress,
             LastKnownIpUpdatedAtUtc = machine.LastKnownIpUpdatedAtUtc,
             GroupId = machine.GroupId,
@@ -1601,6 +1632,22 @@ public sealed class MainForm : Form
                 machine.RedirectPrinters,
                 machine.RedirectSmartCards,
                 machine.RedirectWebAuthn);
+    }
+
+    private void RememberSshHostKey(Guid machineId, string fingerprint)
+    {
+        var machine = _data.Machines.FirstOrDefault(item => item.Id == machineId)
+            ?? _temporaryMachines.FirstOrDefault(item => item.Id == machineId);
+        if (machine is null)
+        {
+            return;
+        }
+
+        machine.SshHostKeyFingerprint = fingerprint;
+        if (!machine.IsTemporary)
+        {
+            SaveData();
+        }
     }
 
     private void RemoveTemporaryMachine(Guid machineId)
@@ -1666,6 +1713,11 @@ public sealed class MainForm : Form
 
     private void ToggleClipboardForConnectedMachine(MachineEntry machine)
     {
+        if (machine.ConnectionType != RemoteConnectionType.Rdp)
+        {
+            return;
+        }
+
         var enabled = !EffectiveRedirectSettings(machine).Clipboard;
         SetMachineClipboardRedirect(machine, enabled);
         SelectMachine(machine.Id);
@@ -1718,6 +1770,12 @@ public sealed class MainForm : Form
             return;
         }
 
+        if (machine.ConnectionType != RemoteConnectionType.Rdp)
+        {
+            MessageBox.Show(this, "SSH-Sitzungen werden mit 'Nur trennen' beendet.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         var result = MessageBox.Show(
             this,
             $"Windows-Sitzung auf \"{machine.DisplayName}\" wirklich abmelden?\n\nDas beendet laufende Programme in dieser Remote-Sitzung.",
@@ -1753,7 +1811,7 @@ public sealed class MainForm : Form
     {
         SweepDisconnectedSessions(refreshUi: false, notifyFailures: false);
         var sessions = _sessions
-            .Where(item => item.Value.IsConnected)
+            .Where(item => item.Value.IsConnected && item.Value.Machine.ConnectionType == RemoteConnectionType.Rdp)
             .Select(item => (MachineId: item.Key, Session: item.Value))
             .ToList();
 
@@ -1953,7 +2011,7 @@ public sealed class MainForm : Form
 
         var result = MessageBox.Show(
             this,
-            "Das Backup ersetzt die aktuelle Maschinen- und Zugangsliste. Bestehende RDP-Sitzungen werden getrennt.\n\nPasswörter sind mit Windows DPAPI geschützt und müssen auf einem anderen Windows-Benutzer oder Rechner eventuell neu gesetzt werden.",
+            "Das Backup ersetzt die aktuelle Maschinen- und Zugangsliste. Bestehende RDP- und SSH-Sitzungen werden getrennt.\n\nPasswörter sind mit Windows DPAPI geschützt und müssen auf einem anderen Windows-Benutzer oder Rechner eventuell neu gesetzt werden.",
             "Backup wiederherstellen",
             MessageBoxButtons.OKCancel,
             MessageBoxIcon.Warning);
@@ -2004,7 +2062,7 @@ public sealed class MainForm : Form
         }
         if (machine.IsTemporary)
         {
-            MessageBox.Show(this, "Ad-hoc-Verbindungen sind nur temporÃ¤r und kÃ¶nnen nicht bearbeitet werden.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Ad-hoc-Verbindungen sind nur temporär und können nicht bearbeitet werden.", Brand.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -2015,8 +2073,13 @@ public sealed class MainForm : Form
         }
 
         var dnsNameChanged = !string.Equals(machine.DnsName, dialog.Machine.DnsName, StringComparison.OrdinalIgnoreCase);
+        var connectionChanged = machine.ConnectionType != dialog.Machine.ConnectionType || machine.SshPort != dialog.Machine.SshPort;
+        var sshEndpointChanged = dnsNameChanged || connectionChanged;
         machine.Name = dialog.Machine.Name;
         machine.DnsName = dialog.Machine.DnsName;
+        machine.ConnectionType = dialog.Machine.ConnectionType;
+        machine.SshPort = dialog.Machine.SshPort;
+        machine.SshHostKeyFingerprint = sshEndpointChanged ? "" : dialog.Machine.SshHostKeyFingerprint;
         machine.LastKnownIpAddress = dnsNameChanged ? "" : dialog.Machine.LastKnownIpAddress;
         machine.LastKnownIpUpdatedAtUtc = dnsNameChanged ? null : dialog.Machine.LastKnownIpUpdatedAtUtc;
         machine.GroupId = dialog.Machine.GroupId;
@@ -2030,6 +2093,11 @@ public sealed class MainForm : Form
         machine.RedirectPrinters = dialog.Machine.RedirectPrinters;
         machine.RedirectSmartCards = dialog.Machine.RedirectSmartCards;
         machine.RedirectWebAuthn = dialog.Machine.RedirectWebAuthn;
+        if (connectionChanged && _sessions.ContainsKey(machine.Id))
+        {
+            CloseLocalSession(machine.Id);
+            ShowSelectedSession();
+        }
         SaveData();
         RefreshMachineList();
     }

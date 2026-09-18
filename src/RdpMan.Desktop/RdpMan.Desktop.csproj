@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RDPMan</AssemblyName>
     <RootNamespace>RdpMan.Desktop</RootNamespace>
-    <Version>0.1.48</Version>
+    <Version>0.2.0</Version>
     <Authors>SANDAV</Authors>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="System.DirectoryServices" Version="8.0.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
 
   <ItemGroup>

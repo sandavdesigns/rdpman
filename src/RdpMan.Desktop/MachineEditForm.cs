@@ -7,6 +7,8 @@ public sealed class MachineEditForm : Form
     private readonly TextBox _lastKnownIp = AppTheme.TextBox();
     private readonly TextBox _lastKnownIpUpdated = AppTheme.TextBox();
     private readonly TextBox _notes = AppTheme.TextBox(multiline: true);
+    private readonly ComboBox _connectionType = new();
+    private readonly NumericUpDown _sshPort = new();
     private readonly ComboBox _group = new();
     private readonly ComboBox _credential = new();
     private readonly ComboBox _color = new();
@@ -16,6 +18,9 @@ public sealed class MachineEditForm : Form
     private readonly CheckBox _redirectPrinters = new();
     private readonly CheckBox _redirectSmartCards = new();
     private readonly CheckBox _redirectWebAuthn = new();
+    private readonly Panel _sshPortField;
+    private readonly Panel _globalRedirectField;
+    private readonly Panel _rdpRedirectField;
     private readonly AppData _data;
 
     public MachineEntry? Machine { get; private set; }
@@ -30,6 +35,9 @@ public sealed class MachineEditForm : Form
                 Id = machine.Id,
                 Name = machine.Name,
                 DnsName = machine.DnsName,
+                ConnectionType = machine.ConnectionType,
+                SshPort = machine.SshPort,
+                SshHostKeyFingerprint = machine.SshHostKeyFingerprint,
                 LastKnownIpAddress = machine.LastKnownIpAddress,
                 LastKnownIpUpdatedAtUtc = machine.LastKnownIpUpdatedAtUtc,
                 GroupId = machine.GroupId,
@@ -45,9 +53,26 @@ public sealed class MachineEditForm : Form
                 RedirectWebAuthn = machine.RedirectWebAuthn,
             };
 
+        _sshPortField = Field("SSH-Port", _sshPort);
+        _globalRedirectField = CheckField(_useGlobalRedirectSettings);
+
+        var security = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 74,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            BackColor = AppTheme.Surface,
+        };
+        security.Controls.Add(_redirectClipboard);
+        security.Controls.Add(_redirectPrinters);
+        security.Controls.Add(_redirectSmartCards);
+        security.Controls.Add(_redirectWebAuthn);
+        _rdpRedirectField = Field("RDP-Freigaben", security);
+
         Text = machine is null ? "Maschine hinzufügen" : "Maschine bearbeiten";
         Width = 600;
-        Height = 840;
+        Height = 900;
         MinimumSize = new Size(560, 720);
         AppTheme.ApplyWindow(this);
 
@@ -68,7 +93,7 @@ public sealed class MachineEditForm : Form
         };
         var description = new Label
         {
-            Text = "Name, Zieladresse, Ordnung, Standard-Zugang und RDP-Sicherheitsoptionen.",
+            Text = "RDP- und SSH-Verbindungen mit Zieladresse und Standard-Zugang.",
             Dock = DockStyle.Top,
             Height = 30,
             ForeColor = AppTheme.MutedText,
@@ -87,8 +112,8 @@ public sealed class MachineEditForm : Form
         {
             Dock = DockStyle.Top,
             ColumnCount = 1,
-            RowCount = 12,
-            Height = 672,
+            RowCount = 14,
+            Height = 800,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -99,6 +124,19 @@ public sealed class MachineEditForm : Form
         _credential.DropDownStyle = ComboBoxStyle.DropDownList;
         _credential.FlatStyle = FlatStyle.Flat;
         AppTheme.StyleInput(_credential);
+
+        _connectionType.DropDownStyle = ComboBoxStyle.DropDownList;
+        _connectionType.FlatStyle = FlatStyle.Flat;
+        _connectionType.Items.Add(new ConnectionTypeChoice(RemoteConnectionType.Rdp, "RDP (Windows)"));
+        _connectionType.Items.Add(new ConnectionTypeChoice(RemoteConnectionType.Ssh, "SSH (Linux / Unix)"));
+        _connectionType.SelectedIndexChanged += (_, _) => UpdateConnectionTypeControls();
+        AppTheme.StyleInput(_connectionType);
+
+        _sshPort.Minimum = 1;
+        _sshPort.Maximum = 65535;
+        _sshPort.Value = 22;
+        _sshPort.Height = 32;
+        AppTheme.StyleInput(_sshPort);
 
         ColorPalette.ConfigureColorCombo(_color);
         StyleReadOnlyTextBox(_lastKnownIp);
@@ -112,30 +150,19 @@ public sealed class MachineEditForm : Form
         StyleCheckBox(_redirectWebAuthn, "WebAuthn / Windows Hello erlauben");
         _useGlobalRedirectSettings.CheckedChanged += (_, _) => UpdateRedirectControls();
 
-        var security = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 74,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            BackColor = AppTheme.Surface,
-        };
-        security.Controls.Add(_redirectClipboard);
-        security.Controls.Add(_redirectPrinters);
-        security.Controls.Add(_redirectSmartCards);
-        security.Controls.Add(_redirectWebAuthn);
-
         layout.Controls.Add(Field("Name", _name, "z.B. Terminalserver 01"), 0, 0);
-        layout.Controls.Add(Field("DNS-Name / Host", _dnsName, "server.domain.local oder IP"), 0, 1);
-        layout.Controls.Add(Field("Letzte bekannte IP", _lastKnownIp), 0, 2);
-        layout.Controls.Add(Field("IP zuletzt aktualisiert", _lastKnownIpUpdated), 0, 3);
-        layout.Controls.Add(Field("Gruppe", _group), 0, 4);
-        layout.Controls.Add(Field("Farbe", _color), 0, 5);
-        layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 6);
-        layout.Controls.Add(CheckField(_favorite), 0, 7);
-        layout.Controls.Add(CheckField(_useGlobalRedirectSettings), 0, 8);
-        layout.Controls.Add(Field("RDP-Freigaben", security), 0, 9);
-        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 10);
+        layout.Controls.Add(Field("Verbindung", _connectionType), 0, 1);
+        layout.Controls.Add(Field("DNS-Name / Host", _dnsName, "server.domain.local oder IP"), 0, 2);
+        layout.Controls.Add(_sshPortField, 0, 3);
+        layout.Controls.Add(Field("Letzte bekannte IP", _lastKnownIp), 0, 4);
+        layout.Controls.Add(Field("IP zuletzt aktualisiert", _lastKnownIpUpdated), 0, 5);
+        layout.Controls.Add(Field("Gruppe", _group), 0, 6);
+        layout.Controls.Add(Field("Farbe", _color), 0, 7);
+        layout.Controls.Add(Field("Standard-Zugang", _credential), 0, 8);
+        layout.Controls.Add(CheckField(_favorite), 0, 9);
+        layout.Controls.Add(_globalRedirectField, 0, 10);
+        layout.Controls.Add(_rdpRedirectField, 0, 11);
+        layout.Controls.Add(Field("Notizen", _notes, "optional"), 0, 12);
 
         scroll.Controls.Add(layout);
 
@@ -161,6 +188,19 @@ public sealed class MachineEditForm : Form
     {
         _name.Text = Machine?.Name ?? "";
         _dnsName.Text = Machine?.DnsName ?? "";
+        _sshPort.Value = Math.Clamp(Machine?.SshPort ?? 22, 1, 65535);
+        for (var index = 0; index < _connectionType.Items.Count; index++)
+        {
+            if (_connectionType.Items[index] is ConnectionTypeChoice choice && choice.Type == Machine?.ConnectionType)
+            {
+                _connectionType.SelectedIndex = index;
+                break;
+            }
+        }
+        if (_connectionType.SelectedIndex < 0)
+        {
+            _connectionType.SelectedIndex = 0;
+        }
         _lastKnownIp.Text = string.IsNullOrWhiteSpace(Machine?.LastKnownIpAddress) ? "Noch nicht ermittelt" : Machine.LastKnownIpAddress;
         _lastKnownIpUpdated.Text = FormatLastKnownIpUpdated(Machine);
         _notes.Text = Machine?.Notes ?? "";
@@ -178,6 +218,7 @@ public sealed class MachineEditForm : Form
             _redirectWebAuthn.Checked = Machine?.RedirectWebAuthn == true;
         }
         UpdateRedirectControls();
+        UpdateConnectionTypeControls();
 
         _group.Items.Add(new GroupChoice(null, "Keine Gruppe"));
         foreach (var group in _data.Groups.OrderBy(item => item.DisplayName))
@@ -253,6 +294,8 @@ public sealed class MachineEditForm : Form
         Machine ??= new MachineEntry();
         Machine.Name = string.IsNullOrWhiteSpace(_name.Text) ? _dnsName.Text.Trim() : _name.Text.Trim();
         Machine.DnsName = _dnsName.Text.Trim();
+        Machine.ConnectionType = (_connectionType.SelectedItem as ConnectionTypeChoice)?.Type ?? RemoteConnectionType.Rdp;
+        Machine.SshPort = (int)_sshPort.Value;
         Machine.GroupId = (_group.SelectedItem as GroupChoice)?.Id;
         Machine.GroupName = Machine.GroupId is null
             ? ""
@@ -279,6 +322,14 @@ public sealed class MachineEditForm : Form
         _redirectPrinters.Enabled = !_useGlobalRedirectSettings.Checked;
         _redirectSmartCards.Enabled = !_useGlobalRedirectSettings.Checked;
         _redirectWebAuthn.Enabled = !_useGlobalRedirectSettings.Checked;
+    }
+
+    private void UpdateConnectionTypeControls()
+    {
+        var isSsh = (_connectionType.SelectedItem as ConnectionTypeChoice)?.Type == RemoteConnectionType.Ssh;
+        _sshPortField.Visible = isSsh;
+        _globalRedirectField.Visible = !isSsh;
+        _rdpRedirectField.Visible = !isSsh;
     }
 
     private void ApplyGlobalRedirectValues()
@@ -314,6 +365,11 @@ public sealed class MachineEditForm : Form
     }
 
     private sealed record CredentialChoice(Guid? Id, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record ConnectionTypeChoice(RemoteConnectionType Type, string Label)
     {
         public override string ToString() => Label;
     }

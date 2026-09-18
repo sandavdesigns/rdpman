@@ -3,7 +3,7 @@ namespace RdpMan.Desktop;
 internal static class Brand
 {
     public const string AppName = "RDPMan";
-    public const string AppSubtitle = "Remote Desktop Manager";
+    public const string AppSubtitle = "Remote Connection Manager";
     public const string ExecutableName = "RDPMan";
     public const string PackageName = "RDPMan";
 

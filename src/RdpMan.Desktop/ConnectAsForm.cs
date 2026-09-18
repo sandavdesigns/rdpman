@@ -6,6 +6,9 @@ public sealed class ConnectAsForm : Form
     private readonly bool _allowRememberDefault;
     private readonly bool _showHost;
     private readonly TextBox _host = AppTheme.TextBox();
+    private readonly ComboBox _connectionType = new();
+    private readonly NumericUpDown _port = new();
+    private Panel? _portField;
     private readonly ComboBox _credential = new();
     private readonly TextBox _domain = AppTheme.TextBox();
     private readonly TextBox _username = AppTheme.TextBox();
@@ -14,6 +17,8 @@ public sealed class ConnectAsForm : Form
     private readonly TableLayoutPanel _manualFields = new();
 
     public string HostName => _host.Text.Trim();
+    public RemoteConnectionType ConnectionType => (_connectionType.SelectedItem as ConnectionTypeChoice)?.Type ?? RemoteConnectionType.Rdp;
+    public int SshPort => (int)_port.Value;
     public CredentialProfile? SelectedCredential { get; private set; }
     public Guid? SelectedCredentialProfileId { get; private set; }
     public bool RememberAsQuickConnectDefault => _allowRememberDefault && _rememberDefault.Checked;
@@ -26,7 +31,7 @@ public sealed class ConnectAsForm : Form
 
         Text = title;
         Width = 520;
-        Height = (allowRememberDefault ? 500 : 460) + (showHost ? 62 : 0);
+        Height = (allowRememberDefault ? 500 : 460) + (showHost ? 186 : 0);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -62,6 +67,20 @@ public sealed class ConnectAsForm : Form
         _credential.SelectedIndexChanged += (_, _) => UpdateManualFields();
         AppTheme.StyleInput(_credential);
 
+        _connectionType.DropDownStyle = ComboBoxStyle.DropDownList;
+        _connectionType.FlatStyle = FlatStyle.Flat;
+        _connectionType.Items.Add(new ConnectionTypeChoice(RemoteConnectionType.Rdp, "RDP (Windows)"));
+        _connectionType.Items.Add(new ConnectionTypeChoice(RemoteConnectionType.Ssh, "SSH (Linux / Unix)"));
+        _connectionType.SelectedIndex = 0;
+        _connectionType.SelectedIndexChanged += (_, _) => UpdateConnectionFields();
+        AppTheme.StyleInput(_connectionType);
+
+        _port.Minimum = 1;
+        _port.Maximum = 65535;
+        _port.Value = 22;
+        _port.Height = 32;
+        AppTheme.StyleInput(_port);
+
         _password.UseSystemPasswordChar = true;
 
         _manualFields.Dock = DockStyle.Top;
@@ -83,7 +102,7 @@ public sealed class ConnectAsForm : Form
         var layout = new Panel
         {
             Dock = DockStyle.Top,
-            Height = (_allowRememberDefault ? 300 : 260) + (_showHost ? 62 : 0),
+            Height = (_allowRememberDefault ? 300 : 260) + (_showHost ? 186 : 0),
             Padding = new Padding(0, 12, 0, 0),
         };
         layout.Controls.Add(_manualFields);
@@ -91,6 +110,9 @@ public sealed class ConnectAsForm : Form
         layout.Controls.Add(Field("Zugang", _credential));
         if (_showHost)
         {
+            _portField = Field("SSH-Port", _port);
+            layout.Controls.Add(_portField);
+            layout.Controls.Add(Field("Verbindung", _connectionType));
             layout.Controls.Add(Field("PC-Name / IP", _host, "PC-Name oder IP"));
         }
 
@@ -126,11 +148,13 @@ public sealed class ConnectAsForm : Form
             if (_credential.Items[index] is CredentialChoice choice && choice.Id == _data.QuickConnectCredentialProfileId)
             {
                 _credential.SelectedIndex = index;
+                UpdateConnectionFields();
                 return;
             }
         }
 
         _credential.SelectedIndex = 0;
+        UpdateConnectionFields();
     }
 
     private void UpdateManualFields()
@@ -138,6 +162,15 @@ public sealed class ConnectAsForm : Form
         var manual = (_credential.SelectedItem as CredentialChoice)?.Manual == true;
         _manualFields.Visible = manual;
         _rememberDefault.Enabled = !manual && (_credential.SelectedItem as CredentialChoice)?.Id is not null;
+    }
+
+    private void UpdateConnectionFields()
+    {
+        var isSsh = ConnectionType == RemoteConnectionType.Ssh;
+        if (_portField is not null)
+        {
+            _portField.Visible = isSsh;
+        }
     }
 
     private void Save()
@@ -194,6 +227,11 @@ public sealed class ConnectAsForm : Form
     }
 
     private sealed record CredentialChoice(Guid? Id, string Label, bool Manual)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record ConnectionTypeChoice(RemoteConnectionType Type, string Label)
     {
         public override string ToString() => Label;
     }

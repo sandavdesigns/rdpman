@@ -1,18 +1,21 @@
 # RDPMan
 
-RDPMan is a native Windows desktop application for managing and switching between RDP sessions. It is intentionally not a browser app: the right side of the window hosts real Microsoft RDP ActiveX sessions so the application can switch between open machines like a classic RDP manager.
+RDPMan is a native Windows desktop application for managing and switching between RDP and SSH sessions. It is intentionally not a browser app: the right side hosts real Microsoft RDP ActiveX sessions or an embedded SSH terminal so the application can switch between open machines like a classic remote connection manager.
 
 ## Features
 
 - Modern WinForms desktop UI with a machine sidebar and embedded RDP workspace
 - Multiple open RDP sessions with sidebar switching
+- Embedded SSH terminal for Linux and Unix hosts with persistent session switching
+- Password-based SSH authentication and configurable SSH ports
 - Connect, connect as, reconnect, disconnect, remove entry, and continuous ping actions
-- Ad hoc RDP sessions that exist only while connected
+- Ad hoc RDP and SSH sessions that exist only while connected
 - Instant machine search across name, host, group, and notes
 - Per-machine colors, favorites, groups, notes, and hover tooltips
 - Central machine groups with inherited colors and credentials
 - Active session badges and connected-state color indicators
 - Local credential profiles with DPAPI-protected passwords
+- SSH host-key fingerprint verification with change warnings
 - Global, per-group, and per-machine credential assignment
 - Per-machine RDP redirection controls for clipboard, printers, smartcards, and WebAuthn
 - Active Directory import by LDAP path / OU
@@ -42,7 +45,7 @@ You can also download the build from **Actions**:
 2. Open the latest **Build Windows App** run.
 3. Download the `RDPMan-<version>-win-x64` artifact.
 
-Tagged versions like `v0.1.48` also create a GitHub Release with the ZIP attached.
+Tagged versions like `v0.2.0` also create a GitHub Release with the ZIP attached.
 
 The build intentionally loads the Microsoft RDP ActiveX control at runtime from
 the Windows registry. This avoids generated COM wrapper files in CI while still

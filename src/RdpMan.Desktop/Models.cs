@@ -2,6 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace RdpMan.Desktop;
 
+public enum RemoteConnectionType
+{
+    Rdp = 0,
+    Ssh = 1,
+}
+
 public sealed class AppData
 {
     public List<MachineEntry> Machines { get; set; } = [];
@@ -36,6 +42,9 @@ public sealed class MachineEntry
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string DnsName { get; set; } = "";
+    public RemoteConnectionType ConnectionType { get; set; } = RemoteConnectionType.Rdp;
+    public int SshPort { get; set; } = 22;
+    public string SshHostKeyFingerprint { get; set; } = "";
     public string LastKnownIpAddress { get; set; } = "";
     public DateTime? LastKnownIpUpdatedAtUtc { get; set; }
     public Guid? GroupId { get; set; }
