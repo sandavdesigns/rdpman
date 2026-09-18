@@ -1,11 +1,10 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 
 namespace RdpMan.Desktop;
 
-public sealed partial class SshSessionHost : IRemoteSessionHost
+public sealed class SshSessionHost : IRemoteSessionHost
 {
     private readonly Panel _host = new();
     private readonly Panel _toolbar = new();
@@ -15,6 +14,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
     private readonly ContextMenuStrip _terminalMenu = new();
     private readonly object _writeLock = new();
     private readonly Action<string> _rememberHostKey;
+    private readonly AnsiTerminalBuffer _terminalBuffer = new();
     private SshClient? _client;
     private ShellStream? _shell;
     private bool _disposed;
@@ -107,13 +107,20 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         _client.Connect();
 
         var (columns, rows) = TerminalSize();
+        var terminalModes = new Dictionary<TerminalModes, uint>
+        {
+            [TerminalModes.VERASE] = 127,
+            [TerminalModes.VINTR] = 3,
+            [TerminalModes.IUTF8] = 1,
+        };
         _shell = _client.CreateShellStream(
             "xterm-256color",
             columns,
             rows,
             (uint)Math.Max(1, _terminal.ClientSize.Width),
             (uint)Math.Max(1, _terminal.ClientSize.Height),
-            16 * 1024);
+            16 * 1024,
+            terminalModes);
         _shell.DataReceived += ShellDataReceived;
         AppendSystemLine("SSH-Verbindung hergestellt. Strg+Umschalt+V fügt Text ein.");
         UpdateClipboardActions();
@@ -235,8 +242,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
 
     private void AppendTerminalText(string text)
     {
-        var clean = AnsiEscapeSequence().Replace(text, "").Replace("\r\n", "\n").Replace('\r', '\n');
-        if (string.IsNullOrEmpty(clean) || _terminal.IsDisposed)
+        if (string.IsNullOrEmpty(text) || _terminal.IsDisposed)
         {
             return;
         }
@@ -248,31 +254,11 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
                 return;
             }
 
-            foreach (var character in clean)
-            {
-                if (character == '\b')
-                {
-                    if (_terminal.TextLength > 0)
-                    {
-                        _terminal.Select(_terminal.TextLength - 1, 1);
-                        _terminal.SelectedText = "";
-                    }
-                    continue;
-                }
-
-                if (!char.IsControl(character) || character is '\n' or '\t')
-                {
-                    _terminal.AppendText(character.ToString());
-                }
-            }
-
-            const int maximumCharacters = 500_000;
-            if (_terminal.TextLength > maximumCharacters)
-            {
-                _terminal.Select(0, _terminal.TextLength - maximumCharacters);
-                _terminal.SelectedText = "";
-            }
-            _terminal.SelectionStart = _terminal.TextLength;
+            var frame = _terminalBuffer.Write(text);
+            _terminal.Text = frame.Text;
+            _terminal.SelectionStart = Math.Clamp(frame.CursorIndex, 0, _terminal.TextLength);
+            _terminal.SelectionLength = 0;
+            _terminal.SelectionColor = _terminal.ForeColor;
             _terminal.ScrollToCaret();
         }
 
@@ -305,7 +291,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         var sequence = e.KeyCode switch
         {
             Keys.Enter => "\r",
-            Keys.Back => "\x08",
+            Keys.Back => "\x7f",
             Keys.Tab => "\t",
             Keys.Up => "\x1b[A",
             Keys.Down => "\x1b[B",
@@ -451,6 +437,4 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         return (columns, rows);
     }
 
-    [GeneratedRegex("\\x1B(?:\\[[0-?]*[ -/]*[@-~]|\\][^\\a]*(?:\\a|\\x1B\\\\)|[@-_])", RegexOptions.Compiled)]
-    private static partial Regex AnsiEscapeSequence();
 }
