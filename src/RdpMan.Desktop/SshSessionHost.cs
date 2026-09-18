@@ -305,7 +305,7 @@ public sealed partial class SshSessionHost : IRemoteSessionHost
         var sequence = e.KeyCode switch
         {
             Keys.Enter => "\r",
-            Keys.Back => "\x7f",
+            Keys.Back => "\x08",
             Keys.Tab => "\t",
             Keys.Up => "\x1b[A",
             Keys.Down => "\x1b[B",
