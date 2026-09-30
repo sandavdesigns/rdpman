@@ -7,8 +7,8 @@ internal static class AppTheme
     public static readonly Color Window = Color.FromArgb(246, 248, 251);
     public static readonly Color Surface = Color.White;
     public static readonly Color SurfaceAlt = Color.FromArgb(240, 244, 248);
-    public static readonly Color Sidebar = Color.FromArgb(17, 24, 39);
-    public static readonly Color SidebarAlt = Color.FromArgb(31, 41, 55);
+    public static readonly Color Sidebar = Color.FromArgb(8, 32, 58);
+    public static readonly Color SidebarAlt = Color.FromArgb(20, 52, 84);
     public static readonly Color Border = Color.FromArgb(214, 222, 232);
     public static readonly Color Text = Color.FromArgb(17, 24, 39);
     public static readonly Color MutedText = Color.FromArgb(100, 116, 139);
