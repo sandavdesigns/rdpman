@@ -45,9 +45,9 @@ internal static class ColorPalette
     {
         comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
         comboBox.DrawMode = DrawMode.OwnerDrawFixed;
-        comboBox.ItemHeight = 26;
         comboBox.FlatStyle = FlatStyle.Flat;
         AppTheme.StyleInput(comboBox);
+        SetDpiScaledItemHeight(comboBox, 26);
         comboBox.DrawItem += DrawColorChoice;
     }
 
@@ -66,9 +66,24 @@ internal static class ColorPalette
             : Marker(choice.Key, isConnected: true);
         using var dot = new SolidBrush(dotColor);
         using var fore = new SolidBrush(e.ForeColor);
+        var scale = comboBox.DeviceDpi / 96f;
+        var left = (int)Math.Round(8 * scale);
+        var top = (int)Math.Round(6 * scale);
+        var size = (int)Math.Round(14 * scale);
+        var textLeft = (int)Math.Round(30 * scale);
+        var textTop = (int)Math.Round(4 * scale);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        e.Graphics.FillEllipse(dot, e.Bounds.Left + 8, e.Bounds.Top + 6, 14, 14);
-        e.Graphics.DrawString(text, AppTheme.UiFont, fore, e.Bounds.Left + 30, e.Bounds.Top + 4);
+        e.Graphics.FillEllipse(dot, e.Bounds.Left + left, e.Bounds.Top + top, size, size);
+        e.Graphics.DrawString(text, AppTheme.UiFont, fore, e.Bounds.Left + textLeft, e.Bounds.Top + textTop);
         e.DrawFocusRectangle();
+    }
+
+    private static void SetDpiScaledItemHeight(ComboBox comboBox, int baselineHeight)
+    {
+        void UpdateItemHeight() => comboBox.ItemHeight = (int)Math.Round(baselineHeight * comboBox.DeviceDpi / 96f);
+
+        comboBox.HandleCreated += (_, _) => UpdateItemHeight();
+        comboBox.DpiChangedAfterParent += (_, _) => UpdateItemHeight();
+        UpdateItemHeight();
     }
 }

@@ -44,7 +44,7 @@ public sealed class CredentialManagerForm : Form
         _list.BorderStyle = BorderStyle.None;
         _list.BackColor = AppTheme.SurfaceAlt;
         _list.DrawMode = DrawMode.OwnerDrawFixed;
-        _list.ItemHeight = 58;
+        SetDpiScaledItemHeight(_list, 58);
         _list.IntegralHeight = false;
         _list.DrawItem += DrawCredentialItem;
 
@@ -95,7 +95,10 @@ public sealed class CredentialManagerForm : Form
 
         var credential = (CredentialProfile)_list.Items[e.Index];
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-        var bounds = Rectangle.Inflate(e.Bounds, -4, -5);
+        var scale = _list.DeviceDpi / 96f;
+        var insetX = (int)Math.Round(4 * scale);
+        var insetY = (int)Math.Round(5 * scale);
+        var bounds = Rectangle.Inflate(e.Bounds, -insetX, -insetY);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(selected ? AppTheme.AccentSoft : Color.White);
         using var marker = new SolidBrush(selected ? AppTheme.Accent : AppTheme.Success);
@@ -103,11 +106,20 @@ public sealed class CredentialManagerForm : Form
         using var muted = new SolidBrush(AppTheme.MutedText);
         using var titleFont = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
 
-        e.Graphics.FillRoundedRectangle(background, bounds, 8);
-        e.Graphics.FillEllipse(marker, bounds.Left + 14, bounds.Top + 15, 24, 24);
-        e.Graphics.DrawString(credential.Label.Length == 0 ? credential.Username : credential.Label, titleFont, title, bounds.Left + 50, bounds.Top + 9);
+        e.Graphics.FillRoundedRectangle(background, bounds, (int)Math.Round(8 * scale));
+        e.Graphics.FillEllipse(marker, bounds.Left + (int)Math.Round(14 * scale), bounds.Top + (int)Math.Round(15 * scale), (int)Math.Round(24 * scale), (int)Math.Round(24 * scale));
+        e.Graphics.DrawString(credential.Label.Length == 0 ? credential.Username : credential.Label, titleFont, title, bounds.Left + (int)Math.Round(50 * scale), bounds.Top + (int)Math.Round(9 * scale));
         var user = string.IsNullOrWhiteSpace(credential.Domain) ? credential.Username : $"{credential.Domain}\\{credential.Username}";
-        e.Graphics.DrawString(user, AppTheme.SmallFont, muted, bounds.Left + 50, bounds.Top + 31);
+        e.Graphics.DrawString(user, AppTheme.SmallFont, muted, bounds.Left + (int)Math.Round(50 * scale), bounds.Top + (int)Math.Round(31 * scale));
+    }
+
+    private static void SetDpiScaledItemHeight(ListBox listBox, int baselineHeight)
+    {
+        void UpdateItemHeight() => listBox.ItemHeight = (int)Math.Round(baselineHeight * listBox.DeviceDpi / 96f);
+
+        listBox.HandleCreated += (_, _) => UpdateItemHeight();
+        listBox.DpiChangedAfterParent += (_, _) => UpdateItemHeight();
+        UpdateItemHeight();
     }
 
     private void RefreshList()

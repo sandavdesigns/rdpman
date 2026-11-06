@@ -25,6 +25,8 @@ internal static class AppTheme
 
     public static void ApplyWindow(Form form)
     {
+        form.AutoScaleDimensions = new SizeF(96, 96);
+        form.AutoScaleMode = AutoScaleMode.Dpi;
         form.Font = UiFont;
         form.BackColor = Window;
         form.ForeColor = Text;

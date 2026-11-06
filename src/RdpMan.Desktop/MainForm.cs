@@ -20,8 +20,10 @@ public sealed class MainForm : Form
     private Guid? _selectedMachineId;
     private AppData _data = new();
 
-    private readonly ListBox _connectedMachineList = new();
-    private readonly ListBox _machineList = new();
+    private readonly MachineListBox _connectedMachineList = new();
+    private readonly MachineListBox _machineList = new();
+    private MachineScrollBar? _connectedScrollBar;
+    private MachineScrollBar? _machineScrollBar;
     private readonly Panel _machineListHost = new();
     private readonly Label _connectedHeader = new();
     private readonly TextBox _search = AppTheme.TextBox();
@@ -71,6 +73,7 @@ public sealed class MainForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        LayoutMachineList();
         OpenSetupWizardIfNeeded();
         RestoreRememberedSessions();
     }
@@ -363,18 +366,23 @@ public sealed class MainForm : Form
         _connectedHeader.Padding = new Padding(10, 7, 0, 0);
         _connectedHeader.BackColor = AppTheme.Sidebar;
         _connectedHeader.Visible = false;
-        _connectedMachineList.Dock = DockStyle.Top;
+        _connectedMachineList.Dock = DockStyle.None;
         _connectedMachineList.Visible = false;
         _connectedMachineList.Paint += DrawConnectedSeparator;
 
         _machineListHost.Dock = DockStyle.Fill;
         _machineListHost.BackColor = AppTheme.Sidebar;
         _machineListHost.Padding = new Padding(0, 0, 8, 0);
-        _machineListHost.Paint += DrawMachineListScrollIndicator;
         _machineListHost.Resize += (_, _) => LayoutMachineList();
         _machineListHost.Controls.Add(_machineList);
         _machineListHost.Controls.Add(_connectedMachineList);
         _machineListHost.Controls.Add(_connectedHeader);
+        _connectedScrollBar = new MachineScrollBar(_connectedMachineList);
+        _machineScrollBar = new MachineScrollBar(_machineList);
+        _machineListHost.Controls.Add(_connectedScrollBar);
+        _machineListHost.Controls.Add(_machineScrollBar);
+        _connectedScrollBar.BringToFront();
+        _machineScrollBar.BringToFront();
         LayoutMachineList();
 
         sidebar.Controls.Add(_machineListHost);
@@ -429,8 +437,11 @@ public sealed class MainForm : Form
             return;
         }
 
-        var itemBounds = Rectangle.Inflate(list.GetItemRectangle(index), -2, -2);
-        if (!ClipboardToggleBounds(itemBounds).Contains(e.Location))
+        var scale = list.DeviceDpi / 96f;
+        var itemBounds = new Rectangle(0, (int)(list.GetItemRectangle(index).Top / scale),
+            (int)((_machineListHost.ClientSize.Width - Dpi(12)) / scale), 48);
+        itemBounds = Rectangle.Inflate(itemBounds, -2, -2);
+        if (!ClipboardToggleBounds(itemBounds).Contains(new Point((int)(e.X / scale), (int)(e.Y / scale))))
         {
             return;
         }
@@ -451,13 +462,37 @@ public sealed class MainForm : Form
 
     private void LayoutMachineList()
     {
+        _machineList.ItemHeight = Dpi(48);
+        _connectedMachineList.ItemHeight = Dpi(48);
+        var availableHeight = Math.Max(0, _machineListHost.ClientSize.Height - (_connectedHeader.Visible ? _connectedHeader.Height : 0));
+        var connectedLimit = _machineList.Items.Count > 0 ? availableHeight * 2 / 5 : availableHeight;
+        _connectedMachineList.Height = Math.Min(_connectedMachineList.Items.Count * Dpi(48), connectedLimit);
         var hiddenScrollWidth = SystemInformation.VerticalScrollBarWidth + 4;
         _machineList.Dock = DockStyle.None;
         var normalTop = (_connectedHeader.Visible ? _connectedHeader.Height : 0) + (_connectedMachineList.Visible ? _connectedMachineList.Height : 0);
         _machineList.Location = new Point(0, normalTop);
         _machineList.Size = new Size(_machineListHost.ClientSize.Width + hiddenScrollWidth, Math.Max(0, _machineListHost.ClientSize.Height - normalTop));
         _connectedMachineList.Width = _machineListHost.ClientSize.Width + hiddenScrollWidth;
+        _connectedMachineList.Location = new Point(0, _connectedHeader.Visible ? _connectedHeader.Height : 0);
+        if (_connectedScrollBar is not null && _machineScrollBar is not null)
+        {
+            _connectedScrollBar.Bounds = new Rectangle(_machineListHost.ClientSize.Width - Dpi(12), _connectedHeader.Visible ? _connectedHeader.Height : 0, Dpi(12), _connectedMachineList.Height);
+            _connectedScrollBar.Visible = _connectedMachineList.Visible;
+            _machineScrollBar.Bounds = new Rectangle(_machineListHost.ClientSize.Width - Dpi(12), normalTop, Dpi(12), _machineList.Height);
+            _connectedScrollBar.Invalidate();
+            _machineScrollBar.Invalidate();
+        }
         _machineListHost.Invalidate();
+    }
+
+    private int Dpi(int value) => (int)Math.Round(value * DeviceDpi / 96f);
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        LayoutMachineList();
+        _machineList.Invalidate();
+        _connectedMachineList.Invalidate();
     }
 
     private Panel BuildWorkspace()
@@ -578,7 +613,7 @@ public sealed class MainForm : Form
         WindowState = FormWindowState.Normal;
         Bounds = _windowedBounds;
         WindowState = _windowedWindowState;
-        _rootLayout.ColumnStyles[0].Width = 320;
+        _rootLayout.ColumnStyles[0].Width = Dpi(320);
         _sidebarPanel.Visible = true;
         _statusStrip.Visible = true;
         _exitFullScreenButton.Visible = false;
@@ -742,7 +777,11 @@ public sealed class MainForm : Form
         var isSsh = machine.ConnectionType == RemoteConnectionType.Ssh;
         var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
         var isConnected = IsSessionConnected(machine.Id);
-        var bounds = Rectangle.Inflate(e.Bounds, -2, -2);
+        var scale = list.DeviceDpi / 96f;
+        using var graphicsState = new GraphicsStateScope(e.Graphics);
+        e.Graphics.ScaleTransform(scale, scale);
+        var bounds = Rectangle.Inflate(new Rectangle(0, (int)Math.Round(e.Bounds.Top / scale),
+            (int)((_machineListHost.ClientSize.Width - Dpi(12)) / scale), 48), -2, -2);
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var background = new SolidBrush(machine.IsTemporary
             ? selected ? Color.FromArgb(22, 78, 99) : Color.FromArgb(19, 50, 60)
@@ -754,9 +793,10 @@ public sealed class MainForm : Form
         using var badgeText = new SolidBrush(Color.FromArgb(5, 46, 22));
         using var sshBadgeBackground = new SolidBrush(Color.FromArgb(13, 148, 136));
         using var sshBadgeText = new SolidBrush(Color.FromArgb(240, 253, 250));
-        using var titleFont = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
-        using var badgeFont = new Font("Segoe UI Semibold", 7.2f, FontStyle.Bold);
-        using var protocolFont = new Font("Segoe UI Semibold", 6.8f, FontStyle.Bold);
+        using var titleFont = new Font("Segoe UI Semibold", 9.5f * 96 / 72, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var badgeFont = new Font("Segoe UI Semibold", 7.2f * 96 / 72, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var protocolFont = new Font("Segoe UI Semibold", 6.8f * 96 / 72, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var detailFont = new Font("Segoe UI", 8.75f * 96 / 72, FontStyle.Regular, GraphicsUnit.Pixel);
         using var ellipsis = new StringFormat
         {
             Trimming = StringTrimming.EllipsisCharacter,
@@ -790,7 +830,7 @@ public sealed class MainForm : Form
         var secondary = MachineListDetailLine(machine);
         if (!string.IsNullOrWhiteSpace(secondary))
         {
-            e.Graphics.DrawString(secondary, AppTheme.SmallFont, muted, new RectangleF(bounds.Left + 44, bounds.Top + 22, textWidth, 15), ellipsis);
+            e.Graphics.DrawString(secondary, detailFont, muted, new RectangleF(bounds.Left + 44, bounds.Top + 22, textWidth, 15), ellipsis);
         }
 
         if (isConnected)
@@ -835,37 +875,6 @@ public sealed class MainForm : Form
             };
             graphics.DrawLine(slash, bounds.Left + 7, bounds.Bottom - 5, bounds.Right - 7, bounds.Top + 5);
         }
-    }
-
-    private void DrawMachineListScrollIndicator(object? sender, PaintEventArgs e)
-    {
-        if (_machineList.Items.Count == 0 || _machineList.ItemHeight <= 0 || _machineList.Height <= 0)
-        {
-            return;
-        }
-
-        var visibleItems = Math.Max(1, _machineList.Height / _machineList.ItemHeight);
-        if (_machineList.Items.Count <= visibleItems)
-        {
-            return;
-        }
-
-        const int width = 4;
-        var track = new Rectangle(
-            _machineListHost.ClientSize.Width - width,
-            _machineList.Top + 8,
-            width,
-            Math.Max(1, _machineList.Height - 16));
-        var thumbHeight = Math.Max(34, track.Height * visibleItems / _machineList.Items.Count);
-        var maxTopIndex = Math.Max(1, _machineList.Items.Count - visibleItems);
-        var top = track.Top + (track.Height - thumbHeight) * Math.Min(_machineList.TopIndex, maxTopIndex) / maxTopIndex;
-        var thumb = new Rectangle(track.Left, top, track.Width, thumbHeight);
-
-        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using var trackBrush = new SolidBrush(Color.FromArgb(30, 41, 59));
-        using var thumbBrush = new SolidBrush(Color.FromArgb(71, 85, 105));
-        e.Graphics.FillRoundedRectangle(trackBrush, track, 2);
-        e.Graphics.FillRoundedRectangle(thumbBrush, thumb, 2);
     }
 
     private string SecondaryMachineLine(MachineEntry machine)
