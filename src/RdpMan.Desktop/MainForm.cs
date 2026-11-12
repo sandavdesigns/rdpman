@@ -25,6 +25,7 @@ public sealed class MainForm : Form
     private MachineScrollBar? _connectedScrollBar;
     private MachineScrollBar? _machineScrollBar;
     private readonly Panel _machineListHost = new();
+    private readonly Dictionary<Guid, PingForm> _pingWindows = [];
     private readonly Label _connectedHeader = new();
     private readonly TextBox _search = AppTheme.TextBox();
     private readonly ToolTip _machineToolTip = new();
@@ -531,7 +532,7 @@ public sealed class MainForm : Form
         var favorite = _machineMenu.Items.Add("Favorit umschalten", null, (_, _) => ToggleFavoriteSelected());
         var edit = _machineMenu.Items.Add("Bearbeiten", null, (_, _) => EditMachine());
         var delete = _machineMenu.Items.Add("Eintrag entfernen", null, (_, _) => DeleteMachine());
-        var ping = _machineMenu.Items.Add("Ping -t", null, (_, _) => PingSelected());
+        var ping = _machineMenu.Items.Add("Ping überwachen", null, (_, _) => PingSelected());
         var reconnect = _machineMenu.Items.Add("Reconnect", null, (_, _) => ReconnectSelected());
         var fullScreen = _machineMenu.Items.Add("Vollbild (F11)", null, (_, _) => ToggleFullScreen());
         _machineMenu.Opening += (_, e) =>
@@ -1970,13 +1971,16 @@ public sealed class MainForm : Form
             return;
         }
 
-        var process = new ProcessStartInfo
+        if (_pingWindows.TryGetValue(machine.Id, out var existing) && !existing.IsDisposed)
         {
-            FileName = "cmd.exe",
-            Arguments = $"/k ping -t {machine.DnsName}",
-            UseShellExecute = true,
-        };
-        Process.Start(process);
+            if (existing.WindowState == FormWindowState.Minimized) existing.WindowState = FormWindowState.Normal;
+            existing.Activate();
+            return;
+        }
+        var window = new PingForm(machine);
+        _pingWindows[machine.Id] = window;
+        window.FormClosed += (_, _) => _pingWindows.Remove(machine.Id);
+        window.Show(this);
     }
 
     private void OpenSetup()

@@ -64,7 +64,7 @@ internal static class EndpointResolver
         }
     }
 
-    private static string HostPart(string address)
+    internal static string HostPart(string address)
     {
         if (address.StartsWith("[", StringComparison.Ordinal))
         {
