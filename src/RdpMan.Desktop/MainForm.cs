@@ -27,6 +27,7 @@ public sealed class MainForm : Form
     private readonly Panel _machineListHost = new();
     private readonly Dictionary<Guid, PingForm> _pingWindows = [];
     private readonly Label _connectedHeader = new();
+    private readonly Label _availableHeader = new();
     private readonly TextBox _search = AppTheme.TextBox();
     private readonly ToolTip _machineToolTip = new();
     private readonly ToolTip _sidebarToolTip = new();
@@ -359,17 +360,22 @@ public sealed class MainForm : Form
         ConfigureMachineList(_machineList);
         BuildMachineContextMenu();
 
-        _connectedHeader.Dock = DockStyle.Top;
-        _connectedHeader.Height = 24;
+        _connectedHeader.Dock = DockStyle.None;
+        _connectedHeader.Height = 32;
         _connectedHeader.Text = "VERBUNDEN";
-        _connectedHeader.ForeColor = Color.FromArgb(100, 116, 139);
-        _connectedHeader.Font = new Font("Segoe UI Semibold", 7.5f, FontStyle.Bold);
-        _connectedHeader.Padding = new Padding(10, 7, 0, 0);
-        _connectedHeader.BackColor = AppTheme.Sidebar;
+        _connectedHeader.ForeColor = Color.FromArgb(134, 239, 172);
+        _connectedHeader.Font = new Font("Segoe UI Semibold", 8f, FontStyle.Bold);
+        _connectedHeader.TextAlign = ContentAlignment.MiddleLeft;
+        _connectedHeader.BackColor = AppTheme.SidebarAlt;
         _connectedHeader.Visible = false;
+        _availableHeader.ForeColor = Color.FromArgb(148, 163, 184);
+        _availableHeader.Font = _connectedHeader.Font;
+        _availableHeader.TextAlign = ContentAlignment.MiddleLeft;
+        _availableHeader.BackColor = AppTheme.Sidebar;
+        _availableHeader.Visible = false;
+        _availableHeader.Paint += DrawSectionSeparator;
         _connectedMachineList.Dock = DockStyle.None;
         _connectedMachineList.Visible = false;
-        _connectedMachineList.Paint += DrawConnectedSeparator;
 
         _machineListHost.Dock = DockStyle.Fill;
         _machineListHost.BackColor = AppTheme.Sidebar;
@@ -378,6 +384,7 @@ public sealed class MainForm : Form
         _machineListHost.Controls.Add(_machineList);
         _machineListHost.Controls.Add(_connectedMachineList);
         _machineListHost.Controls.Add(_connectedHeader);
+        _machineListHost.Controls.Add(_availableHeader);
         _connectedScrollBar = new MachineScrollBar(_connectedMachineList);
         _machineScrollBar = new MachineScrollBar(_machineList);
         _machineListHost.Controls.Add(_connectedScrollBar);
@@ -450,27 +457,35 @@ public sealed class MainForm : Form
         ToggleClipboardForConnectedMachine(machine);
     }
 
-    private void DrawConnectedSeparator(object? sender, PaintEventArgs e)
+    private void DrawSectionSeparator(object? sender, PaintEventArgs e)
     {
         if (!_connectedMachineList.Visible)
         {
             return;
         }
 
-        using var pen = new Pen(Color.FromArgb(51, 65, 85), 1);
-        e.Graphics.DrawLine(pen, 10, _connectedMachineList.Height - 5, _connectedMachineList.Width - 10, _connectedMachineList.Height - 5);
+        using var pen = new Pen(Color.FromArgb(80, 105, 130), Dpi(1));
+        e.Graphics.DrawLine(pen, Dpi(10), Dpi(1), Math.Max(Dpi(10), _availableHeader.Width - Dpi(12)), Dpi(1));
     }
 
     private void LayoutMachineList()
     {
         _machineList.ItemHeight = Dpi(48);
         _connectedMachineList.ItemHeight = Dpi(48);
-        var availableHeight = Math.Max(0, _machineListHost.ClientSize.Height - (_connectedHeader.Visible ? _connectedHeader.Height : 0));
+        var connectedHeaderHeight = _connectedHeader.Visible ? Dpi(32) : 0;
+        var availableHeaderHeight = _availableHeader.Visible ? Dpi(36) : 0;
+        var sectionGap = _connectedHeader.Visible && _availableHeader.Visible ? Dpi(8) : 0;
+        _connectedHeader.Bounds = new Rectangle(0, 0, _machineListHost.ClientSize.Width, connectedHeaderHeight);
+        _connectedHeader.Padding = new Padding(Dpi(12), 0, 0, 0);
+        _availableHeader.Padding = new Padding(Dpi(12), 0, 0, 0);
+        var availableHeight = Math.Max(0, _machineListHost.ClientSize.Height - connectedHeaderHeight - availableHeaderHeight - sectionGap);
         var connectedLimit = _machineList.Items.Count > 0 ? availableHeight * 2 / 5 : availableHeight;
         _connectedMachineList.Height = Math.Min(_connectedMachineList.Items.Count * Dpi(48), connectedLimit);
         var hiddenScrollWidth = SystemInformation.VerticalScrollBarWidth + 4;
         _machineList.Dock = DockStyle.None;
-        var normalTop = (_connectedHeader.Visible ? _connectedHeader.Height : 0) + (_connectedMachineList.Visible ? _connectedMachineList.Height : 0);
+        var availableHeaderTop = connectedHeaderHeight + (_connectedMachineList.Visible ? _connectedMachineList.Height : 0) + sectionGap;
+        _availableHeader.Bounds = new Rectangle(0, availableHeaderTop, _machineListHost.ClientSize.Width, availableHeaderHeight);
+        var normalTop = availableHeaderTop + availableHeaderHeight;
         _machineList.Location = new Point(0, normalTop);
         _machineList.Size = new Size(_machineListHost.ClientSize.Width + hiddenScrollWidth, Math.Max(0, _machineListHost.ClientSize.Height - normalTop));
         _connectedMachineList.Width = _machineListHost.ClientSize.Width + hiddenScrollWidth;
@@ -1162,6 +1177,9 @@ public sealed class MainForm : Form
         _machineList.DataSource = null;
         _machineList.DataSource = machines;
         _connectedHeader.Visible = connectedMachines.Count > 0;
+        _connectedHeader.Text = $"VERBUNDEN ({connectedMachines.Count})";
+        _availableHeader.Visible = machines.Count > 0;
+        _availableHeader.Text = connectedMachines.Count > 0 ? $"WEITERE RECHNER ({machines.Count})" : $"RECHNER ({machines.Count})";
         _connectedMachineList.Visible = connectedMachines.Count > 0;
         _connectedMachineList.Height = connectedMachines.Count == 0
             ? 0
