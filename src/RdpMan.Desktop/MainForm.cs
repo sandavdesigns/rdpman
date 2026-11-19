@@ -1785,9 +1785,9 @@ public sealed class MainForm : Form
         }
 
         CloseLocalSession(machine.Id);
+        RefreshMachineList();
+        SelectMachine(machine.Id);
         ShowSelectedSession();
-        _machineList.Invalidate();
-        _connectedMachineList.Invalidate();
         _statusLabel.Text = $"Getrennt: {machine.DisplayName}";
     }
 
